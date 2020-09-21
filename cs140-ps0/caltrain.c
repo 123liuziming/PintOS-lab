@@ -1,19 +1,19 @@
 #include "pintos_thread.h"
 
 struct station {
-	// FILL ME IN
+
 };
 
 void
 station_init(struct station *station)
 {
-	// FILL ME IN
+
 }
 
 void
 station_load_train(struct station *station, int count)
 {
-	// FILL ME IN
+
 }
 
 void
