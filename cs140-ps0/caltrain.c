@@ -51,7 +51,6 @@ station_load_train(struct station *station, int count)
 void
 station_wait_for_train(struct station *station)
 {
-	// 等待cond_empty
 	lock_acquire(station->lock);
 	/**
 	 * pthread_cond_wait的工作机制如下:
@@ -79,6 +78,7 @@ station_on_board(struct station *station)
 	lock_acquire(station->lock);
 	--(station->board_passengers);
 	--(station->seat_num);
+	// 没有座位或者所有等待的乘客都坐好了
 	if (station->seat_num == 0 || station->board_passengers == 0)
 		cond_signal(station->cond_full, station->lock);
 	lock_release(station->lock);
