@@ -44,6 +44,7 @@ station_load_train(struct station *station, int count)
 	// 出发后把座位重设为0,表示车已经开走了
 	// 注意,没有乘客在等的时候会直接开走
 	station->seat_num = 0;
+	station->board_passengers = 0;
 	lock_release(station->lock);
 }
 
@@ -62,6 +63,8 @@ station_wait_for_train(struct station *station)
 	 * 获取互斥锁->修改条件变量->解除互斥锁，此时B获取到互斥锁，但是条件变量不能满足，还要继续阻塞等待
 	 **/
 	++(station->wait_passengers);
+	// 上车了要调用station_on_board才会坐下
+	// 车上如果上满人了,则阻塞,等待新车来
 	while (station->board_passengers == station->seat_num)
 		cond_wait(station->cond_train, station->lock);
 	--(station->wait_passengers);
@@ -72,6 +75,7 @@ station_wait_for_train(struct station *station)
 void
 station_on_board(struct station *station)
 {
+	// 乘客上车,将减少座位数量
 	lock_acquire(station->lock);
 	--(station->board_passengers);
 	--(station->seat_num);
