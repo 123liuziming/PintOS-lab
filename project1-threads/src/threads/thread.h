@@ -100,6 +100,7 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    int64_t ticks_remain;               /* 剩余的睡眠ticks */
   };
 
 /* If false (default), use round-robin scheduler.

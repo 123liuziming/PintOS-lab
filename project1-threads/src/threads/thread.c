@@ -123,7 +123,11 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-
+  // 减少线程阻塞的时间数
+  --(t->ticks_remain);
+  // 如果不用再等了,就把状态设置为就绪态
+  if (t->ticks_remain == 0)
+    t->status = THREAD_READY;
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -133,7 +137,6 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
