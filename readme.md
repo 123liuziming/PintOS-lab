@@ -1,2 +1,3 @@
 # cs140
-- ps0: working
+- ps0: finished
+- project1: threads: working
