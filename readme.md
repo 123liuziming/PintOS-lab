@@ -1,2 +1,2 @@
 # cs140
-- ps0: working
+- ps0: **finished**
