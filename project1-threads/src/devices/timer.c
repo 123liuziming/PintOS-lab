@@ -97,8 +97,9 @@ timer_sleep (int64_t ticks)
   enum intr_level old_level = intr_disable ();
   struct thread *t = thread_current ();
   // 设置等待的跳数
-  t->ticks_remain = ticks;
-  thread_block();
+  t->ticks_remain = ticks >= 0 ? ticks : 0;
+  if (t->ticks_remain > 0)
+    thread_block();
   intr_set_level (old_level);
 }
 
@@ -178,9 +179,8 @@ timer_print_stats (void)
   如果到了时间，就要把此线程变成就绪态
 */
 void check_remain(struct thread *t, void *aux UNUSED) {
-  if (t->status == THREAD_BLOCKED && t->ticks_remain >= 0) {
-    if (t->ticks_remain > 0)
-      --(t->ticks_remain);
+  if (t->status == THREAD_BLOCKED && t->ticks_remain > 0) {
+    --(t->ticks_remain);
     if (t->ticks_remain == 0)
       thread_unblock(t);
   }
