@@ -123,11 +123,6 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-  // 减少线程阻塞的时间数
-  --(t->ticks_remain);
-  // 如果不用再等了,就把状态设置为就绪态
-  if (t->ticks_remain == 0)
-    t->status = THREAD_READY;
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -488,6 +483,12 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
+
+bool pri_cmp(const struct list_elem *a, const struct list_elem *b, void *aux) {
+  return list_entry(a, struct thread, elem)->priority < list_entry(b, struct thread, elem)->priority;
+}
+
+
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -498,8 +499,12 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else {
+    // 找队列中优先级最大的,然后把它移出队列
+    struct list_elem *max_pri = list_max(&ready_list, pri_cmp, NULL);
+    list_remove(max_pri);
+    return list_entry (max_pri, struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page

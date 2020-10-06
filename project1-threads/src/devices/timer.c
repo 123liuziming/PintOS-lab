@@ -98,7 +98,7 @@ timer_sleep (int64_t ticks)
   struct thread *t = thread_current ();
   // 设置等待的跳数
   t->ticks_remain = ticks;
-  t->status = THREAD_BLOCKED;
+  thread_block();
   intr_set_level (old_level);
 }
 
@@ -172,12 +172,29 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
+
+/*
+  检查某个阻塞中的线程阻塞的滴答数到了没有
+  如果到了时间，就要把此线程变成就绪态
+*/
+void check_remain(struct thread *t, void *aux UNUSED) {
+  if (t->status == THREAD_BLOCKED && t->ticks_remain >= 0) {
+    if (t->ticks_remain > 0)
+      --(t->ticks_remain);
+    if (t->ticks_remain == 0)
+      thread_unblock(t);
+  }
+}
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  // 对每个线程都要判断时间片是否到时了
+  // 可以用thread_foreach
+  thread_foreach(check_remain, NULL);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
