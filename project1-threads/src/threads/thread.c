@@ -207,6 +207,10 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  // 如果新建的线程优先级更高,当前线程要让出
+  if (thread_current()->priority < priority)
+    thread_yield();
+
   return tid;
 }
 
@@ -337,17 +341,35 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+int all_threads_max_priority () {
+  struct list_elem *e;
+  int res = -1;
+  if (&all_list == NULL || list_empty(&all_list))
+    return -1;
+  for (e = list_begin (&all_list); e != NULL && e != list_end (&all_list); e = list_next (e)) {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->priority > res)
+        res = t->priority;
+    }
+    return res;
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread* t = thread_current();
+  t->priority = new_priority;
+  /* If the current thread no longer has the highest priority, yields. */
+  if (t->priority < all_threads_max_priority())
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
+  /* In the presence of priority donation, returns the higher (donated) priority. */
   return thread_current ()->priority;
 }
 
@@ -483,11 +505,9 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
-
 bool pri_cmp(const struct list_elem *a, const struct list_elem *b, void *aux) {
   return list_entry(a, struct thread, elem)->priority < list_entry(b, struct thread, elem)->priority;
 }
-
 
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
