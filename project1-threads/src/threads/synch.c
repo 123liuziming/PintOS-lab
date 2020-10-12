@@ -124,7 +124,7 @@ sema_up (struct semaphore *sema)
   sema->value++;
   intr_set_level (old_level);
   // 要重新调度
-  if (removed != NULL && removed->priority > thread_current()->priority)
+  if (removed == NULL || removed != NULL && removed->priority > thread_current()->priority)
     thread_yield();
 }
 
@@ -210,16 +210,18 @@ lock_acquire (struct lock *lock)
 
   struct thread* cur = thread_current();
   cur->waiting_lock = lock;
-  // 循环更新锁上等待进程队列中的最大优先级
-  struct lock *wait_lock = lock;
-  while (wait_lock != NULL && cur->priority > wait_lock->max_priority) {
-    wait_lock->max_priority = cur->priority;
-    // 找这个锁的线程所持有的所有锁中最大的优先级
-    struct list_elem *locks_max_priority = list_max(&wait_lock->holder->locks, lock_pri_cmp, NULL);
-    int max_pri_val = list_entry(locks_max_priority, struct lock, element)->max_priority;
-    if (max_pri_val > wait_lock->holder->priority)
-      wait_lock->holder->priority = max_pri_val;
-    wait_lock = wait_lock->holder->waiting_lock;
+  if (lock->holder != NULL) {
+    // 循环更新锁上等待进程队列中的最大优先级
+    struct lock *wait_lock = lock;
+    while (wait_lock != NULL && cur->priority > wait_lock->max_priority) {
+      wait_lock->max_priority = cur->priority;
+      // 找这个锁的线程所持有的所有锁中最大的优先级
+      struct list_elem *locks_max_priority = list_max(&wait_lock->holder->locks, lock_pri_cmp, NULL);
+      int max_pri_val = list_entry(locks_max_priority, struct lock, element)->max_priority;
+      if (max_pri_val > wait_lock->holder->priority)
+        wait_lock->holder->priority = max_pri_val;
+      wait_lock = wait_lock->holder->waiting_lock;
+    }
   }
 
   sema_down (&lock->semaphore);
