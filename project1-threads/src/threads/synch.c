@@ -189,6 +189,10 @@ lock_init (struct lock *lock)
   sema_init (&lock->semaphore, 1);
 }
 
+bool lock_pri_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  return (list_entry(a, struct lock, element)->max_priority < list_entry(b, struct lock, element)->max_priority);
+}
+
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
    thread.
@@ -204,8 +208,25 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  struct thread* cur = thread_current();
+  cur->waiting_lock = lock;
+  // 循环更新锁上等待进程队列中的最大优先级
+  struct lock *wait_lock = lock;
+  while (wait_lock != NULL && cur->priority > wait_lock->max_priority) {
+    wait_lock->max_priority = cur->priority;
+    // 找这个锁的线程所持有的所有锁中最大的优先级
+    struct list_elem *locks_max_priority = list_max(&wait_lock->holder->locks, lock_pri_cmp, NULL);
+    int max_pri_val = list_entry(locks_max_priority, struct lock, element)->max_priority;
+    if (max_pri_val > wait_lock->holder->priority)
+      wait_lock->holder->priority = max_pri_val;
+    wait_lock = wait_lock->holder->waiting_lock;
+  }
+
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  // 被唤醒了,waiting_lock应为空了
+  cur->waiting_lock = NULL;
+  list_push_back(&thread_current()->locks,&lock->element);
+  lock->holder = cur;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -238,7 +259,18 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
+  struct thread* cur = thread_current();
+  // 如果释放后此线程不持有其他锁了,设置为老优先级就可以
+  int new_priority = cur->old_priority;
+  // 持有的锁退出队列
+  list_remove(&lock->element);
+  if (!list_empty(&cur->locks)) {
+    // 更新此线程的优先级为剩余锁的最大优先级
+    struct list_elem *max_priority_in_locks = list_max(&thread_current()->locks, lock_pri_cmp ,NULL);
+    int tmp = list_entry(max_priority_in_locks, struct lock, element)->max_priority;
+    new_priority = tmp > new_priority ? tmp : new_priority;
+  }
+  cur->priority = new_priority;
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }

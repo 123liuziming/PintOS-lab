@@ -359,8 +359,13 @@ void
 thread_set_priority (int new_priority) 
 {
   struct thread* t = thread_current();
-  t->priority = new_priority;
+  // 设置原始优先级
+  t->old_priority = new_priority;
   /* If the current thread no longer has the highest priority, yields. */
+  // 更新的优先级大于当前线程的优先级则要设置新优先级
+  // 没持有锁的话也是直接更新
+  if (list_empty(&t->locks) || new_priority > t->priority)
+    t->priority = new_priority;
   if (t->priority < all_threads_max_priority())
     thread_yield();
 }

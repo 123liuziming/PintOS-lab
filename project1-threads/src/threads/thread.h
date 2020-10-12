@@ -101,6 +101,11 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
     int64_t ticks_remain;               /* 剩余的睡眠ticks */
+
+    int old_priority;                  /* 老的优先级 */
+    bool is_donated;                   /* 是否处于等待状态,若等待则优先级是捐赠的优先级 */
+    struct list locks;                 /* 线程持有的锁 */
+    struct lock* waiting_lock;         /* 线程阻塞的锁 */
   };
 
 /* If false (default), use round-robin scheduler.
