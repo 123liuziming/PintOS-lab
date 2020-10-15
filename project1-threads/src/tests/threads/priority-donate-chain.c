@@ -92,7 +92,6 @@ donor_thread_func (void *locks_)
 
   lock_acquire (locks->second);
   msg ("%s got lock", thread_name ());
-
   lock_release (locks->second);
   msg ("%s should have priority %d. Actual priority: %d", 
         thread_name (), (NESTING_DEPTH - 1) * 3,

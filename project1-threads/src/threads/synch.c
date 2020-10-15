@@ -186,6 +186,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
+  lock->max_priority = PRI_MIN;
   sema_init (&lock->semaphore, 1);
 }
 
@@ -229,6 +230,8 @@ lock_acquire (struct lock *lock)
   cur->waiting_lock = NULL;
   list_push_back(&thread_current()->locks,&lock->element);
   lock->holder = cur;
+  // 更新lock的优先级,减少上面循环的次数
+  lock->max_priority = cur->priority > lock->max_priority ? cur->priority : lock->max_priority;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -345,9 +348,7 @@ cond_wait (struct condition *cond, struct lock *lock)
 
 
 bool cond_cmp (const struct list_elem *a,const struct list_elem *b,void *aux UNUSED){
-  struct semaphore_elem *sa = list_entry(a, struct semaphore_elem, elem);
-  struct semaphore_elem *sb = list_entry(b, struct semaphore_elem, elem);
-  return list_entry(list_front(&sa->semaphore.waiters), struct thread,elem)->priority < list_entry(list_front(&sb->semaphore.waiters), struct thread,elem)->priority;
+  return list_entry(list_front(&(list_entry(a, struct semaphore_elem, elem))->semaphore.waiters), struct thread,elem)->priority < list_entry(list_front(&(list_entry(b, struct semaphore_elem, elem))->semaphore.waiters), struct thread,elem)->priority;
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
@@ -364,7 +365,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
-
+  // 把条件变量的等待队列变成优先队列
   if (!list_empty (&cond->waiters)) {
     struct list_elem *max_priority = list_max (&cond->waiters, cond_cmp, NULL);
     list_remove (max_priority);
