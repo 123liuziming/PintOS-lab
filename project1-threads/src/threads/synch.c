@@ -267,9 +267,9 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   struct thread* cur = thread_current();
-  // 持有的锁退出队列
-  list_remove(&lock->element);
   if (!list_empty(&cur->locks) && !thread_mlfqs) {
+     // 持有的锁退出队列
+    list_remove(&lock->element);
     // 如果释放后此线程不持有其他锁了,设置为老优先级就可以
     int new_priority = cur->old_priority;
     // 更新此线程的优先级为剩余锁的最大优先级

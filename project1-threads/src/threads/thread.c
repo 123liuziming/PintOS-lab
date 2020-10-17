@@ -373,6 +373,8 @@ thread_set_priority (int new_priority)
 }
 
 void update_priority(struct thread *t, void *aux) {
+  if (t == idle_thread)
+    return;
   int new_priority = PRI_MAX - CONVERT_X_TO_INTEGER_NEAREST(DIVIDE_X_BY_N(t->recent_cpu, 4)) - (t->nice * 2);
   new_priority = new_priority > PRI_MAX ? PRI_MAX : new_priority;
   new_priority = new_priority < PRI_MIN ? PRI_MIN : new_priority;
@@ -383,10 +385,12 @@ void inc_recent_cpu() {
   /* recent_cpu is incremented by 1 for the running thread only, unless the idle thread is running */
   struct thread* t = thread_current();
   if (t != idle_thread)
-    ADD_X_AND_N(t->recent_cpu, 1);
+    t->recent_cpu = ADD_X_AND_N(t->recent_cpu, 1);
 }
 
 void update_recent_cpu(struct thread *t, void *aux) {
+  if (t == idle_thread)
+    return;
   t->recent_cpu = ADD_X_AND_N(MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(MULTIPLY_X_BY_N(load_avg, 2), ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), 1)), t->recent_cpu), t->nice);
 }
 
@@ -411,7 +415,7 @@ thread_set_nice (int nice UNUSED)
 {
   struct thread* cur = thread_current();
   nice = nice > 20 ? 20 : nice;
-  nice = nice < -20 ? -20 : nice;
+  nice = nice < -20 ? -20 : nice; 
   cur->nice = nice;
   update_priority(thread_current(), NULL);
   thread_yield();
@@ -429,7 +433,6 @@ int
 thread_get_load_avg (void) 
 {
   return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(load_avg, 100));
-}
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -527,8 +530,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->old_priority = priority;
   t->nice = 0;
   t->recent_cpu = CONVERT_N_TO_FIXED_POINT(0);
-  // 初始时要重新计算,每隔四个时钟周期也要
-  update_priority(t, NULL);
   list_init(&t->locks);
   t->waiting_lock = NULL;
   list_push_back (&all_list, &t->allelem);
