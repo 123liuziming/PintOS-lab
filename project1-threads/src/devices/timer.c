@@ -195,6 +195,15 @@ timer_interrupt (struct intr_frame *args UNUSED)
   // 对每个线程都要判断时间片是否到时了
   // 可以用thread_foreach
   thread_foreach(check_remain, NULL);
+  if (thread_mlfqs) {
+    inc_recent_cpu();
+    if (timer_ticks() % TIMER_FREQ == 0) {
+      thread_foreach(update_recent_cpu, NULL);
+      update_load_avg();
+    }
+    if (timer_ticks() % 4 == 0)
+      thread_foreach(update_priority, NULL);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

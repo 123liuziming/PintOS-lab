@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/float.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -49,6 +50,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static int load_avg = CONVERT_N_TO_FIXED_POINT(0);
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -130,7 +132,7 @@ thread_tick (void)
   else if (t->pagedir != NULL)
     user_ticks++;
 #endif
-  else
+  else 
     kernel_ticks++;
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -370,6 +372,31 @@ thread_set_priority (int new_priority)
     thread_yield();
 }
 
+void update_priority(struct thread *t, void *aux) {
+  int new_priority = PRI_MAX - CONVERT_X_TO_INTEGER_NEAREST(DIVIDE_X_BY_N(t->recent_cpu, 4)) - (t->nice * 2);
+  new_priority = new_priority > PRI_MAX ? PRI_MAX : new_priority;
+  new_priority = new_priority < PRI_MIN ? PRI_MIN : new_priority;
+  t->priority = new_priority; 
+}
+
+void inc_recent_cpu() {
+  /* recent_cpu is incremented by 1 for the running thread only, unless the idle thread is running */
+  struct thread* t = thread_current();
+  if (t != idle_thread)
+    ADD_X_AND_N(t->recent_cpu, 1);
+}
+
+void update_recent_cpu(struct thread *t, void *aux) {
+  t->recent_cpu = ADD_X_AND_N(MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(MULTIPLY_X_BY_N(load_avg, 2), ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), 1)), t->recent_cpu), t->nice);
+}
+
+void update_load_avg() {
+  size_t ready_threads_num = list_size(&ready_list);
+  if (thread_current() != idle_thread)
+    ++ready_threads_num;
+  load_avg = ADD_X_AND_Y(DIVIDE_X_BY_N(MULTIPLY_X_BY_N(load_avg, 59), 60), DIVIDE_X_BY_N(CONVERT_N_TO_FIXED_POINT(ready_threads_num), 60));
+}
+
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
@@ -382,31 +409,34 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  struct thread* cur = thread_current();
+  nice = nice > 20 ? 20 : nice;
+  nice = nice < -20 ? -20 : nice;
+  cur->nice = nice;
+  update_priority(thread_current(), NULL);
+  thread_yield();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(load_avg, 100));
+}
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -495,6 +525,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->old_priority = priority;
+  t->nice = 0;
+  t->recent_cpu = CONVERT_N_TO_FIXED_POINT(0);
+  // 初始时要重新计算,每隔四个时钟周期也要
+  update_priority(t, NULL);
   list_init(&t->locks);
   t->waiting_lock = NULL;
   list_push_back (&all_list, &t->allelem);
