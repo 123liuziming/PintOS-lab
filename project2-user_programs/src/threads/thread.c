@@ -71,6 +71,13 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/*
+  set exit status for this userprog
+*/
+void set_exit_code(int8_t exit_code) {
+  thread_current() ->exit_code = exit_code;
+}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -469,7 +476,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->exit_code = EXIT_CODE_OK;
+  t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+  sema_init(t->parent_sema, 0);
+  t->parent_process = thread_current();
+  list_init(&(t->child_processes));
   list_push_back (&all_list, &t->allelem);
+  list_push_back (&(thread_current()->child_processes), &t->elem);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

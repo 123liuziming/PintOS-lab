@@ -23,21 +23,16 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-struct semaphore* child_lock;
-bool child_flag;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+  process_execute (const char *file_name) 
 {
   char *fn_copy;
   tid_t tid;
-  child_lock = (struct semaphore*) malloc(sizeof(struct semaphore));
-  child_flag = false;
-  sema_init(child_lock, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -52,7 +47,6 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
   //printf("fn_copy is %s\n", fn_copy);
-  sema_down(child_lock);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -130,8 +124,7 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   palloc_free_page (file_name_);
-  sema_up(child_lock);
-  child_flag = true;
+  sema_up(thread_current() -> parent_process);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
@@ -148,9 +141,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(!child_flag)
-    ;
-  return -1;
+  
+  sema_down(thread_current() -> parent_sema);
 }
 
 /* Free the current process's resources. */
@@ -159,7 +151,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-  printf("%s: exit(%d)\n",cur->name, 0);
+  printf("%s: exit(%d)\n",cur->name, cur->exit_code);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

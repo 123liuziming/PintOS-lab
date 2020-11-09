@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -18,6 +19,8 @@ enum thread_status
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+#define EXIT_CODE_ERROR ((int8_t) -1)
+#define EXIT_CODE_OK ((int8_t) 0)
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -96,6 +99,10 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    int8_t exit_code;
+    struct semaphore* parent_sema;
+    struct thread* parent_process;
+    struct list child_processes;
 #endif
 
     /* Owned by thread.c. */
@@ -106,6 +113,8 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+void set_exit_code(int8_t exit_code);
 
 void thread_init (void);
 void thread_start (void);
