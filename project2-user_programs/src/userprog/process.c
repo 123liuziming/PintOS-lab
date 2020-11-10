@@ -23,7 +23,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -141,8 +140,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  
-  sema_down(thread_current() -> parent_sema);
+  struct pid_hash p;
+  p.pid = child_tid;
+  struct pid_hash* target = hash_entry(hash_find(&pid_hash_map, &p.elem), struct pid_hash, elem);
+  sema_down(target->t->parent_sema);
 }
 
 /* Free the current process's resources. */

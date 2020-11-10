@@ -71,11 +71,17 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+struct hash pid_hash_map;
+
 /*
   set exit status for this userprog
 */
 void set_exit_code(int8_t exit_code) {
   thread_current() ->exit_code = exit_code;
+}
+
+struct thread* get_process_by_id(tid_t id) {
+
 }
 
 /* Initializes the threading system by transforming the code
@@ -190,6 +196,10 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  struct pid_hash tmp;
+  tmp.pid = t->tid;
+  tmp.t = t;
+  hash_insert(&pid_hash_map, &tmp.elem);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -461,6 +471,20 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
+unsigned pid_hash (const struct hash_elem *p_, void *aux UNUSED)
+{
+  const struct pid_hash *p = hash_entry (p_, struct pid_hash, elem);
+  return hash_bytes (&p->pid, sizeof p->pid);
+}
+
+bool pid_less (const struct hash_elem *a_, const struct hash_elem *b_,
+           void *aux UNUSED)
+{
+  const struct pid_hash *a = hash_entry (a_, struct pid_hash, elem);
+  const struct pid_hash *b = hash_entry (b_, struct pid_hash, elem);
+  return a->pid < b->pid;
+}
+
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
@@ -483,6 +507,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->child_processes));
   list_push_back (&all_list, &t->allelem);
   list_push_back (&(thread_current()->child_processes), &t->elem);
+  if (strcmp(name, "main") == 0)
+    hash_init(&pid_hash_map, pid_hash, pid_less, NULL);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

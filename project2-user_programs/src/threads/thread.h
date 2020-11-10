@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "lib/kernel/hash.h"
+#include "lib/user/syscall.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -109,10 +111,20 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+struct pid_hash {
+   pid_t pid;
+   struct thread* t;
+   struct hash_elem elem;
+};
+
+struct thread* get_process_by_id(tid_t id);
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+struct hash pid_hash_map;
+
 
 void set_exit_code(int8_t exit_code);
 
