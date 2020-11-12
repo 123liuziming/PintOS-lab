@@ -98,13 +98,11 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
-
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
 #endif
-
   /* Initialize interrupt handlers. */
   intr_init ();
   timer_init ();
@@ -115,6 +113,7 @@ main (void)
   syscall_init ();
 #endif
 
+  pid_hash_map[1] = thread_current();
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
@@ -128,7 +127,6 @@ main (void)
 #endif
 
   printf ("Boot complete.\n");
-  
   /* Run actions specified on kernel command line. */
   run_actions (argv);
 

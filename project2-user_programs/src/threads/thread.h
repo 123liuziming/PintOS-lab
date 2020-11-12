@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "lib/kernel/hash.h"
-#include "lib/user/syscall.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +22,8 @@ typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 #define EXIT_CODE_ERROR ((int8_t) -1)
 #define EXIT_CODE_OK ((int8_t) 0)
+
+#define pid_t int
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -111,22 +112,13 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-struct pid_hash {
-   pid_t pid;
-   struct thread* t;
-   struct hash_elem elem;
-};
-
 struct thread* get_process_by_id(tid_t id);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-struct hash pid_hash_map;
-
-
-void set_exit_code(int8_t exit_code);
+struct thread* pid_hash_map[128];
 
 void thread_init (void);
 void thread_start (void);

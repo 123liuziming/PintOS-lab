@@ -4,6 +4,7 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -71,18 +72,12 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-struct hash pid_hash_map;
+struct thread* pid_hash_map[128];
 
 /*
   set exit status for this userprog
 */
-void set_exit_code(int8_t exit_code) {
-  thread_current() ->exit_code = exit_code;
-}
 
-struct thread* get_process_by_id(tid_t id) {
-
-}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -111,6 +106,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  struct semaphore parent_sema;
+  sema_init(&parent_sema, 0);
+  initial_thread->parent_sema = &parent_sema;
+  list_init(&(initial_thread->child_processes));
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -192,15 +191,17 @@ thread_create (const char *name, int priority,
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
-
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  struct pid_hash tmp;
-  tmp.pid = t->tid;
-  tmp.t = t;
-  hash_insert(&pid_hash_map, &tmp.elem);
-
+  struct semaphore parent_sema;
+  sema_init(&parent_sema, 0);
+  t->parent_sema = &parent_sema;
+  t->parent_process = thread_current();
+  list_push_back (&(thread_current()->child_processes), &t->elem);
+  list_init(&(t->child_processes));
+  list_push_back (&all_list, &t->allelem);
+  pid_hash_map[tid] = t;
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -225,7 +226,6 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
   return tid;
 }
 
@@ -471,20 +471,6 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
-unsigned pid_hash (const struct hash_elem *p_, void *aux UNUSED)
-{
-  const struct pid_hash *p = hash_entry (p_, struct pid_hash, elem);
-  return hash_bytes (&p->pid, sizeof p->pid);
-}
-
-bool pid_less (const struct hash_elem *a_, const struct hash_elem *b_,
-           void *aux UNUSED)
-{
-  const struct pid_hash *a = hash_entry (a_, struct pid_hash, elem);
-  const struct pid_hash *b = hash_entry (b_, struct pid_hash, elem);
-  return a->pid < b->pid;
-}
-
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
@@ -501,14 +487,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->exit_code = EXIT_CODE_OK;
-  t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
-  sema_init(t->parent_sema, 0);
-  t->parent_process = thread_current();
-  list_init(&(t->child_processes));
-  list_push_back (&all_list, &t->allelem);
-  list_push_back (&(thread_current()->child_processes), &t->elem);
-  if (strcmp(name, "main") == 0)
-    hash_init(&pid_hash_map, pid_hash, pid_less, NULL);
+  list_push_back (&all_list, &initial_thread->allelem);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
