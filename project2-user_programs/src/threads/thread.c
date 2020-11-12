@@ -106,7 +106,9 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  list_init(&(initial_thread->child_processes));
+  #ifdef USERPROG
+    list_init(&(initial_thread->child_processes));
+  #endif
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -191,13 +193,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
-  sema_init(t->parent_sema, 0);
-  t->parent_process = thread_current();
-  list_init(&(t->child_processes));
-  list_push_back (&(thread_current()->child_processes), &t->elem);
-  list_push_back (&all_list, &t->allelem);
-  pid_hash_map[tid] = t;
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -218,6 +213,14 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  #ifdef USERPROG
+    t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+    sema_init(t->parent_sema, 0);
+    t->parent_process = thread_current();
+    list_init(&(t->child_processes));
+    list_push_back (&(thread_current()->child_processes), &t->elem);
+    pid_hash_map[tid] = t;
+  #endif
   intr_set_level (old_level);
 
   /* Add to run queue. */
@@ -306,7 +309,6 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
-
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -482,8 +484,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  t->exit_code = EXIT_CODE_OK;
-  list_push_back (&all_list, &initial_thread->allelem);
+  #ifdef USERPROG
+    t->exit_code = EXIT_CODE_OK;
+  #endif
+  list_push_back (&all_list, &t->allelem);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

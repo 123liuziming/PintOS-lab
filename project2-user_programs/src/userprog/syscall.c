@@ -33,7 +33,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 		case SYS_EXIT:
 			thread_exit();
 			break;
-
 		case SYS_HALT:
 			syscall_halt();
 			break;

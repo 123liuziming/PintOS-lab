@@ -45,11 +45,10 @@ tid_t
   real_name = strtok_r(file_name, " ", &save_ptr);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
-  timer_sleep(5000);
-  printf("I am executing\n");
+  sema_down(pid_hash_map[tid]->parent_sema);
   //printf("fn_copy is %s\n", fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
   return tid;
 }
 
@@ -58,7 +57,6 @@ tid_t
 static void
 start_process (void *file_name_)
 {
-  printf(thread_current()->parent_process->tid);
   char* full_str;
   char* file_name;
   char* name_str;
@@ -126,7 +124,6 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   palloc_free_page (file_name_);
-  sema_up(thread_current() -> parent_process->parent_sema);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
@@ -143,8 +140,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  sema_down(pid_hash_map[child_tid]->parent_sema);
-  printf("finish\n");
+  struct thread* child = pid_hash_map[child_tid];
+  return child->exit_code;
 }
 
 /* Free the current process's resources. */
@@ -152,6 +149,7 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  sema_up(thread_current() -> parent_sema);
   uint32_t *pd;
   printf("%s: exit(%d)\n",cur->name, cur->exit_code);
   /* Destroy the current process's page directory and switch back
