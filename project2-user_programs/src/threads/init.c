@@ -114,6 +114,8 @@ main (void)
 #endif
 
   pid_hash_map[1] = thread_current();
+  thread_current()->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+  sema_init(thread_current()->parent_sema, 0);
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();

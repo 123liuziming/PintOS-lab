@@ -106,9 +106,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  struct semaphore parent_sema;
-  sema_init(&parent_sema, 0);
-  initial_thread->parent_sema = &parent_sema;
   list_init(&(initial_thread->child_processes));
 }
 
@@ -194,12 +191,11 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  struct semaphore parent_sema;
-  sema_init(&parent_sema, 0);
-  t->parent_sema = &parent_sema;
+  t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+  sema_init(t->parent_sema, 0);
   t->parent_process = thread_current();
-  list_push_back (&(thread_current()->child_processes), &t->elem);
   list_init(&(t->child_processes));
+  list_push_back (&(thread_current()->child_processes), &t->elem);
   list_push_back (&all_list, &t->allelem);
   pid_hash_map[tid] = t;
   /* Prepare thread for first run by initializing its stack.

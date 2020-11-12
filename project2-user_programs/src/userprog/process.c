@@ -45,6 +45,8 @@ tid_t
   real_name = strtok_r(file_name, " ", &save_ptr);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
+  timer_sleep(5000);
+  printf("I am executing\n");
   //printf("fn_copy is %s\n", fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -56,6 +58,7 @@ tid_t
 static void
 start_process (void *file_name_)
 {
+  printf(thread_current()->parent_process->tid);
   char* full_str;
   char* file_name;
   char* name_str;
@@ -137,13 +140,11 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-#define list_elem_to_hash_elem(LIST_ELEM)                       \
-        list_entry(LIST_ELEM, struct hash_elem, list_elem)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  printf("wait\n");
   sema_down(pid_hash_map[child_tid]->parent_sema);
+  printf("finish\n");
 }
 
 /* Free the current process's resources. */
