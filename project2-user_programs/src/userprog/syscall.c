@@ -9,6 +9,9 @@
 
 static void syscall_handler (struct intr_frame *);
 
+// syn-write
+struct lock filesys_lock;
+
 /* Reads a byte at user virtual address UADDR.
    UADDR must be below PHYS_BASE.
    Returns the byte value if successful, -1 if a segfault
@@ -16,6 +19,8 @@ static void syscall_handler (struct intr_frame *);
 static int
 get_user (const uint8_t *uaddr)
 {
+  if (!is_user_vaddr(uaddr))
+	return -1;
   int result;
   asm ("movl $1f, %0; movzbl %1, %0; 1:"
        : "=&a" (result) : "m" (*uaddr));
@@ -35,6 +40,8 @@ put_user (uint8_t *udst, uint8_t byte)
 }
 
 static void syscall_exit(int exit_code) {
+	if (lock_held_by_current_thread(&filesys_lock))
+		lock_release(&filesys_lock);
 	thread_current() -> exit_code = exit_code;
 	thread_exit();
 }
@@ -57,6 +64,7 @@ static void read_from_user(void* from, void* to, size_t size) {
 void
 syscall_init (void) 
 {
+  lock_init(&filesys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -65,13 +73,17 @@ static void syscall_halt(void) {
 }
 
 static void syscall_write(int fd, const void* buffer, unsigned size) {
+	lock_acquire(&filesys_lock);
 	if (fd == 1) 
 		putbuf(buffer, size);
-	
+	lock_release(&filesys_lock);
 }
 
 static int syscall_create(const char* file, unsigned initial_size) {
-	return filesys_create(file, initial_size);
+	lock_acquire(&filesys_lock);
+	int res = filesys_create(file, initial_size);
+	lock_release(&filesys_lock);
+	return res;
 }
 
 
@@ -95,8 +107,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 			read_from_user(p + 1, &fd, sizeof(fd));
 			read_from_user(p + 2, &buffer, sizeof(buffer));
 			read_from_user(p + 3, &size, sizeof(size));
-			check_memory((const uint8_t*) buffer);
-			check_memory((const uint8_t*) buffer + size - 1);
+			check_memory(buffer);
+			check_memory(buffer + size - 1);
 			syscall_write(fd, buffer, size);
 			f->eax = size;
 			break;
@@ -116,6 +128,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			unsigned initial_size;
 			read_from_user(p + 1, &file, sizeof(file));
 			read_from_user(p + 2, &initial_size, sizeof(initial_size));
+			check_memory(file);
 			f->eax = syscall_create(file, initial_size);
 			break;
 		}
