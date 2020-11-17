@@ -124,6 +124,7 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   palloc_free_page (file_name_);
+  // hex_dump(if_.esp, if_.esp, PHYS_BASE - (if_.esp), true);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
