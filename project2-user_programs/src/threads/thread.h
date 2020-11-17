@@ -29,6 +29,8 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define OPEN_MAX 128
+#define PID_MAX 128
 
 /* A kernel thread or user process.
 
@@ -106,6 +108,7 @@ struct thread
     struct semaphore* parent_sema;
     struct thread* parent_process;
     struct list child_processes;
+    struct file* files_map[OPEN_MAX];
 #endif
 
     /* Owned by thread.c. */
@@ -118,7 +121,8 @@ struct thread* get_process_by_id(tid_t id);
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-struct thread* pid_hash_map[128];
+struct thread* pid_hash_map[PID_MAX];
+int fd_now;
 
 void thread_init (void);
 void thread_start (void);

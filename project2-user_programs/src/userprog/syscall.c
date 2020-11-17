@@ -6,6 +6,7 @@
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
 #include "threads/vaddr.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -72,11 +73,18 @@ static void syscall_halt(void) {
 	shutdown_power_off();
 }
 
-static void syscall_write(int fd, const void* buffer, unsigned size) {
+static int syscall_write(int fd, const void* buffer, unsigned size) {
+	int res = -1;
 	lock_acquire(&filesys_lock);
-	if (fd == 1) 
+	if (fd == 1) { 
 		putbuf(buffer, size);
+		res = size;
+	}
+	else {
+		
+	}
 	lock_release(&filesys_lock);
+	return res;
 }
 
 static int syscall_create(const char* file, unsigned initial_size) {
@@ -86,6 +94,34 @@ static int syscall_create(const char* file, unsigned initial_size) {
 	return res;
 }
 
+static int syscall_read(int fd, void* buffer, unsigned size) {
+	int res = -1;
+	lock_acquire(&filesys_lock);
+	if (fd == 0) {
+		int i = 0;
+		for (i = 0; i < size; ++i) {
+			if (!put_user(buffer + i, input_getc()))
+				syscall_exit(EXIT_CODE_ERROR);
+		}
+		lock_release(&filesys_lock);
+		res = size;
+	} else {
+		return size;
+	}
+	return res;
+}
+
+static int syscall_open(const char* file) {
+	lock_acquire(&filesys_lock);
+	struct file* f = filesys_open(file);
+	if (!f) {
+		lock_release(&filesys_lock);
+		syscall_exit(EXIT_CODE_ERROR);
+	}
+	thread_current() -> files_map[fd_now++] = f;
+	lock_release(&filesys_lock);
+	return fd_now - 1;
+}
 
 
 static void
@@ -130,6 +166,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 			read_from_user(p + 2, &initial_size, sizeof(initial_size));
 			check_memory(file);
 			f->eax = syscall_create(file, initial_size);
+			break;
+		}
+		case SYS_READ: {
+			break;
+		}
+		case SYS_OPEN: {
+			char* file;
+			read_from_user(p + 1, &file, sizeof(file));
+			check_memory(file);
+			f->eax = syscall_open(file);
 			break;
 		}
 

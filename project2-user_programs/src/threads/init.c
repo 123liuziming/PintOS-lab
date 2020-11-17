@@ -84,7 +84,6 @@ main (void)
   /* Break command line into arguments and parse options. */
   argv = read_command_line ();
   argv = parse_options (argv);
-
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
@@ -112,7 +111,7 @@ main (void)
   exception_init ();
   syscall_init ();
 #endif
-
+  fd_now = 3;
   pid_hash_map[1] = thread_current();
   thread_current()->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
   sema_init(thread_current()->parent_sema, 0);
