@@ -7,16 +7,18 @@
 #include "filesys/filesys.h"
 #include "threads/vaddr.h"
 #include "devices/input.h"
+#include "filesys/file.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
 // syn-write
 struct lock filesys_lock;
 
-/* Reads a byte at user virtual address UADDR.
-   UADDR must be below PHYS_BASE.
-   Returns the byte value if successful, -1 if a segfault
-   occurred. */
+static bool check_fd(int fd) {
+	return fd >= 0 && fd < 128;
+}
+
 static int
 get_user (const uint8_t *uaddr)
 {
@@ -27,10 +29,7 @@ get_user (const uint8_t *uaddr)
        : "=&a" (result) : "m" (*uaddr));
   return result;
 }
- 
-/* Writes BYTE to user address UDST.
-   UDST must be below PHYS_BASE.
-   Returns true if successful, false if a segfault occurred. */
+
 static bool
 put_user (uint8_t *udst, uint8_t byte)
 {
@@ -81,7 +80,11 @@ static int syscall_write(int fd, const void* buffer, unsigned size) {
 		res = size;
 	}
 	else {
-		
+		if (check_fd(fd)) {
+			struct file* f = thread_current() -> files_map[fd];
+			if (f) 
+				res = file_write(f, buffer, size);
+		}
 	}
 	lock_release(&filesys_lock);
 	return res;
@@ -100,14 +103,20 @@ static int syscall_read(int fd, void* buffer, unsigned size) {
 	if (fd == 0) {
 		int i = 0;
 		for (i = 0; i < size; ++i) {
-			if (!put_user(buffer + i, input_getc()))
+			if (!put_user(buffer + i, input_getc())) {
+				lock_release(&filesys_lock);
 				syscall_exit(EXIT_CODE_ERROR);
+			}
 		}
-		lock_release(&filesys_lock);
 		res = size;
 	} else {
-		return size;
+		if (check_fd(fd)) {
+			struct file* f = thread_current() -> files_map[fd];
+			if (f) 
+				res = file_read(f, buffer, size);
+		}
 	}
+	lock_release(&filesys_lock);
 	return res;
 }
 
@@ -116,13 +125,43 @@ static int syscall_open(const char* file) {
 	struct file* f = filesys_open(file);
 	if (!f) {
 		lock_release(&filesys_lock);
-		syscall_exit(EXIT_CODE_ERROR);
+		return -1;
 	}
 	thread_current() -> files_map[fd_now++] = f;
 	lock_release(&filesys_lock);
 	return fd_now - 1;
 }
 
+static int syscall_filesize(int fd) {
+	int res = -1;
+	lock_acquire(&filesys_lock);
+	if (check_fd(fd)) {
+		struct file* f = thread_current() -> files_map[fd];
+		if (f) 
+			res = file_length(f);
+	}
+	lock_release(&filesys_lock);
+	return res;
+}
+
+static void syscall_close(int fd) {
+	lock_acquire(&filesys_lock);
+	if (check_fd(fd)) {
+		struct file* f = thread_current() -> files_map[fd];
+		if (f) {
+			file_close(f);
+			thread_current() -> files_map[fd] = NULL;
+		}
+	}
+	lock_release(&filesys_lock);
+}
+
+static pid_t syscall_exec(void* cmd) {
+	lock_acquire(&filesys_lock);
+	pid_t res = process_execute(cmd); 
+	lock_release(&filesys_lock);
+	return res;
+}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
@@ -169,6 +208,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 			break;
 		}
 		case SYS_READ: {
+			int fd;
+			void* buffer;
+			unsigned size;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			read_from_user(p + 2, &buffer, sizeof(buffer));
+			read_from_user(p + 3, &size, sizeof(size));
+			check_memory(buffer);
+			check_memory(buffer + size - 1);
+			f->eax = syscall_read(fd, buffer, size);
 			break;
 		}
 		case SYS_OPEN: {
@@ -178,8 +226,28 @@ syscall_handler (struct intr_frame *f UNUSED)
 			f->eax = syscall_open(file);
 			break;
 		}
+		case SYS_FILESIZE: {
+			int fd;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			f->eax = syscall_filesize(fd);
+			break;
+		}
+		case SYS_CLOSE: {
+			int fd;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			syscall_close(fd);
+			break;
+		}
+		case SYS_EXEC: {
+			void* cmd;
+			read_from_user(p + 1, &cmd, sizeof(cmd));
+			check_memory(cmd);
+			f->eax = syscall_exec(cmd);
+			break;
+		}
 
 		default:
+			printf("%d\n", system_call);
 			printf("not implement yet\n");
 	}
 }
