@@ -19,6 +19,10 @@ static bool check_fd(int fd) {
 	return fd >= 0 && fd < 128;
 }
 
+static bool check_pid(pid_t pid) {
+	return pid > 2 && pid < PID_MAX;
+}
+
 static int
 get_user (const uint8_t *uaddr)
 {
@@ -162,6 +166,8 @@ static pid_t syscall_exec(void* cmd) {
 }
 
 static int syscall_wait(pid_t pid) {
+	if (!check_pid(pid))
+		syscall_exit(EXIT_CODE_ERROR);
 	return process_wait(pid);
 }
 
@@ -172,13 +178,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   check_memory(p);
   
-  // hex_dump(f->esp, f->esp,PHYS_BASE - (f->esp),true);
+  //hex_dump(f->esp, f->esp,PHYS_BASE - (f->esp),true);
+  //printf("%d\n", *p);
   int system_call = * p;
 
 	switch (system_call)
 	{
 		case SYS_WRITE: {
-			// hex_dump(f->esp, f->esp, PHYS_BASE - (f->esp), true);
 			int fd;
 			void* buffer;
 			unsigned size;
