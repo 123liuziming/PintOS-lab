@@ -95,8 +95,10 @@ start_process (void *file_name_)
   // base地址为
   const void* BASE = if_.esp;
   /* If load failed, quit. */
-  if (!success) 
-    thread_exit ();
+  if (!success) {
+    thread_current() -> exit_code = EXIT_CODE_ERROR;
+    thread_exit();
+  }
   for (token = strtok_r (full_str, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
     const int token_len = strlen(token) + 1;
     if_.esp -= token_len;
