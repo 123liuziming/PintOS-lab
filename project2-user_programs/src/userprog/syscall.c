@@ -157,10 +157,12 @@ static void syscall_close(int fd) {
 }
 
 static pid_t syscall_exec(void* cmd) {
-	lock_acquire(&filesys_lock);
 	pid_t res = process_execute(cmd); 
-	lock_release(&filesys_lock);
 	return res;
+}
+
+static int syscall_wait(pid_t pid) {
+	return process_wait(pid);
 }
 
 static void
@@ -169,7 +171,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   int * p = f->esp;
 
   check_memory(p);
-
+  
+  // hex_dump(f->esp, f->esp,PHYS_BASE - (f->esp),true);
   int system_call = * p;
 
 	switch (system_call)
@@ -243,6 +246,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 			read_from_user(p + 1, &cmd, sizeof(cmd));
 			check_memory(cmd);
 			f->eax = syscall_exec(cmd);
+			break;
+		}
+		case SYS_WAIT: {
+			pid_t pid;
+			read_from_user(p + 1, &pid, sizeof(pid));
+			f->eax = syscall_wait(pid);
 			break;
 		}
 

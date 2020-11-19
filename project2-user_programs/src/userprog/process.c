@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "devices/timer.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -45,6 +46,7 @@ tid_t
   real_name = strtok_r(file_name, " ", &save_ptr);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
+
   sema_down(pid_hash_map[tid]->parent_sema);
   //printf("fn_copy is %s\n", fn_copy);
   if (tid == TID_ERROR)
@@ -83,7 +85,9 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  lock_acquire(&filesys_lock);
   success = load (file_name, &if_.eip, &if_.esp);
+  lock_release(&filesys_lock);
   // base地址为
   const void* BASE = if_.esp;
   /* If load failed, quit. */
@@ -125,6 +129,7 @@ start_process (void *file_name_)
      and jump to it. */
   palloc_free_page (file_name_);
   // hex_dump(if_.esp, if_.esp, PHYS_BASE - (if_.esp), true);
+  // printf("%x\n", if_.eip);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
