@@ -53,6 +53,10 @@ tid_t
 
   sema_down(pid_hash_map[tid]->parent_sema);
   //printf("fn_copy is %s\n", fn_copy);
+  if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
+    pid_hash_map[tid] = NULL;
+    return -1;
+  }
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -152,6 +156,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  if (child_tid < 0 || child_tid > 127) {
+    return -1;
+  }
   struct thread* child = pid_hash_map[child_tid];
   if (child == NULL) 
     return EXIT_CODE_ERROR;

@@ -19,10 +19,6 @@ static bool check_fd(int fd) {
 	return fd >= 0 && fd < 128;
 }
 
-static bool check_pid(pid_t pid) {
-	return pid > 2 && pid < PID_MAX;
-}
-
 static int
 get_user (const uint8_t *uaddr)
 {
@@ -166,8 +162,6 @@ static pid_t syscall_exec(void* cmd) {
 }
 
 static int syscall_wait(pid_t pid) {
-	if (!check_pid(pid))
-		syscall_exit(EXIT_CODE_ERROR);
 	return process_wait(pid);
 }
 
