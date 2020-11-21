@@ -51,10 +51,11 @@ static void syscall_exit(int exit_code) {
 		lock_release(&filesys_lock);
 	struct thread* cur = thread_current();
 	cur->exit_code = exit_code;
-	if (cur->exec_file_fd != -1) {
-		file_allow_write(cur->files_map[cur->exec_file_fd]);
-		file_close(cur->files_map[cur->exec_file_fd]);
-		cur->exec_file_fd = -1;
+	if (cur->exec_file_name != NULL) {
+		printf("dsfasfsdafasdf\n");
+		file_allow_write(cur->files_map[127]);
+		file_close(cur->files_map[127]);
+		cur->exec_file_name = NULL;
 	}
 	thread_exit();
 }
@@ -165,10 +166,12 @@ static int syscall_filesize(int fd) {
 static void syscall_close(int fd) {
 	lock_acquire(&filesys_lock);
 	if (check_fd(fd)) {
-		struct file* f = thread_current() -> files_map[fd];
+		struct file* f = thread_current()->files_map[fd];
 		if (f) {
+			if (fd == 127) 
+				file_allow_write(thread_current()->files_map[127]);
 			file_close(f);
-			thread_current() -> files_map[fd] = NULL;
+			thread_current()->files_map[fd] = NULL;
 		}
 	}
 	lock_release(&filesys_lock);
@@ -181,6 +184,30 @@ static pid_t syscall_exec(void* cmd) {
 
 static int syscall_wait(pid_t pid) {
 	return process_wait(pid);
+}
+
+static void syscall_seek(int fd, unsigned position) {
+	lock_acquire(&filesys_lock);
+	if (check_fd(fd)) {
+		struct file* f = thread_current() -> files_map[fd];
+		if (f) {
+			file_seek(f, position);
+		}
+	}
+	lock_release(&filesys_lock);
+}
+
+static unsigned syscall_tell(int fd) {
+	unsigned res = -1;
+	lock_acquire(&filesys_lock);
+	if (check_fd(fd)) {
+		struct file* f = thread_current() -> files_map[fd];
+		if (f) {
+			res = file_tell(f);
+		}
+	}
+	lock_release(&filesys_lock);
+	return res;
 }
 
 static void
@@ -269,6 +296,20 @@ syscall_handler (struct intr_frame *f UNUSED)
 			pid_t pid;
 			read_from_user(p + 1, &pid, sizeof(pid));
 			f->eax = syscall_wait(pid);
+			break;
+		}
+		case SYS_SEEK: {
+			int fd;
+			unsigned position;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			read_from_user(p + 2, &position, sizeof(position));
+			syscall_seek(fd, position);
+			break;
+		}
+		case SYS_TELL: {
+			int fd;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			f->eax = syscall_tell(fd);
 			break;
 		}
 
