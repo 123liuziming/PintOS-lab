@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/init.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -90,6 +91,7 @@ kill (struct intr_frame *f)
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
       thread_current()->exit_code = EXIT_CODE_ERROR;
+      pid_hash_map[thread_current()->tid]->exit_code = EXIT_CODE_ERROR;
       thread_exit (); 
 
     case SEL_KCSEG:
@@ -106,6 +108,7 @@ kill (struct intr_frame *f)
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
       thread_current()->exit_code = EXIT_CODE_ERROR;
+      pid_hash_map[thread_current()->tid]->exit_code = EXIT_CODE_ERROR;
       thread_exit ();
     }
 }

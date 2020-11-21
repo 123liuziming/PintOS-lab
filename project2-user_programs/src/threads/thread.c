@@ -12,6 +12,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/init.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -71,8 +72,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-
-struct thread* pid_hash_map[128];
 
 /*
   set exit status for this userprog
@@ -219,7 +218,12 @@ thread_create (const char *name, int priority,
     t->parent_process = thread_current();
     list_init(&(t->child_processes));
     list_push_back (&(thread_current()->child_processes), &t->elem);
-    pid_hash_map[tid] = t;
+    
+    struct thread* tmp = (struct thread*) malloc(PGSIZE);
+    memcpy(tmp, t, PGSIZE);
+    pid_hash_map[tid] = tmp;
+    
+    
   #endif
   intr_set_level (old_level);
 

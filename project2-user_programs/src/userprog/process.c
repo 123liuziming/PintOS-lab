@@ -50,13 +50,15 @@ tid_t
   /* Create a new thread to execute FILE_NAME. */
   //printf("%s\n", real_name);
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
-
+  int i;
   sema_down(pid_hash_map[tid]->parent_sema);
+  
   //printf("fn_copy is %s\n", fn_copy);
   if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
     pid_hash_map[tid] = NULL;
     return -1;
   }
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -101,6 +103,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   if (!success) {
     thread_current() -> exit_code = EXIT_CODE_ERROR;
+    pid_hash_map[thread_current()->tid]->exit_code = EXIT_CODE_ERROR;
     thread_exit();
   }
   for (token = strtok_r (full_str, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
@@ -159,11 +162,14 @@ process_wait (tid_t child_tid UNUSED)
   if (child_tid < 0 || child_tid > 127) {
     return -1;
   }
+  
+  //("waiting for %d\n", child_tid);
   struct thread* child = pid_hash_map[child_tid];
   if (child == NULL) 
     return EXIT_CODE_ERROR;
+  int res = child->exit_code;
   pid_hash_map[child_tid] = NULL;
-  return child->exit_code;
+  return res;
 }
 
 /* Free the current process's resources. */
@@ -171,11 +177,16 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  printf("%s: exit(%d)\n",cur->name, pid_hash_map[cur->tid]->exit_code);
   sema_up(thread_current() -> parent_sema);
   uint32_t *pd;
-  printf("%s: exit(%d)\n",cur->name, cur->exit_code);
+  //printf("%d ", cur->tid);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+  if (cur->exec_file_name != NULL) {
+		file_close(cur->files_map[127]);
+		cur->exec_file_name = NULL;
+	}
   pd = cur->pagedir;
   if (pd != NULL) 
     {

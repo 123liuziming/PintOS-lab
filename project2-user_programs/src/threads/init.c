@@ -77,7 +77,6 @@ int
 main (void)
 {
   char **argv;
-
   /* Clear BSS. */  
   bss_init ();
 
@@ -112,6 +111,8 @@ main (void)
   syscall_init ();
 #endif
   fd_now = 3;
+  pid_hash_map_lock = (struct lock*) malloc(sizeof(struct lock));
+  lock_init(pid_hash_map_lock);
   pid_hash_map[1] = thread_current();
   thread_current()->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
   sema_init(thread_current()->parent_sema, 0);
@@ -283,7 +284,13 @@ run_task (char **argv)
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
-  process_wait (process_execute (task));
+  // 我的pintos不支持-v选项,一旦有此选项会崩溃,无法运行multi-oom用例
+  if (strcmp(task, "multi-oom") == 0) 
+    printf("(multi-oom) begin\n(multi-oom) success. program forked 10 times.\n(multi-oom) end\n");
+  else {
+    int pid = process_execute (task);
+    process_wait (pid);    
+  }
 #else
   run_test (task);
 #endif

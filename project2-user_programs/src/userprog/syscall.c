@@ -9,6 +9,7 @@
 #include "devices/input.h"
 #include "filesys/file.h"
 #include "userprog/process.h"
+#include "threads/init.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -49,14 +50,10 @@ put_user (uint8_t *udst, uint8_t byte)
 static void syscall_exit(int exit_code) {
 	if (lock_held_by_current_thread(&filesys_lock))
 		lock_release(&filesys_lock);
+	int i;
 	struct thread* cur = thread_current();
+	pid_hash_map[cur->tid]->exit_code = exit_code;
 	cur->exit_code = exit_code;
-	if (cur->exec_file_name != NULL) {
-		printf("dsfasfsdafasdf\n");
-		file_allow_write(cur->files_map[127]);
-		file_close(cur->files_map[127]);
-		cur->exec_file_name = NULL;
-	}
 	thread_exit();
 }
 
@@ -167,9 +164,7 @@ static void syscall_close(int fd) {
 	lock_acquire(&filesys_lock);
 	if (check_fd(fd)) {
 		struct file* f = thread_current()->files_map[fd];
-		if (f) {
-			if (fd == 127) 
-				file_allow_write(thread_current()->files_map[127]);
+		if (f && fd != 127) {
 			file_close(f);
 			thread_current()->files_map[fd] = NULL;
 		}
@@ -183,7 +178,8 @@ static pid_t syscall_exec(void* cmd) {
 }
 
 static int syscall_wait(pid_t pid) {
-	return process_wait(pid);
+	int res = process_wait(pid);
+	return res;
 }
 
 static void syscall_seek(int fd, unsigned position) {
@@ -210,6 +206,14 @@ static unsigned syscall_tell(int fd) {
 	return res;
 }
 
+static bool syscall_remove(const char *file) {
+	bool res;
+	lock_acquire (&filesys_lock);
+  	res = filesys_remove(file);
+  	lock_release (&filesys_lock);
+  	return res;
+}
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
@@ -218,7 +222,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   check_memory(p);
   
   //hex_dump(f->esp, f->esp,PHYS_BASE - (f->esp),true);
-  //printf("%d\n", *p);
   int system_call = * p;
 
 	switch (system_call)
@@ -310,6 +313,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 			int fd;
 			read_from_user(p + 1, &fd, sizeof(fd));
 			f->eax = syscall_tell(fd);
+			break;
+		}
+		case SYS_REMOVE: {
+			char* file;
+			read_from_user(p + 1, &file, sizeof(file));
+			check_memory(file);
+			f->eax = syscall_remove(file);
 			break;
 		}
 

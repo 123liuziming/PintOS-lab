@@ -123,8 +123,6 @@ struct thread* get_process_by_id(tid_t id);
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-struct thread* pid_hash_map[PID_MAX];
-int fd_now;
 
 void thread_init (void);
 void thread_start (void);
