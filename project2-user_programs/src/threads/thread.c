@@ -486,6 +486,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   #ifdef USERPROG
     t->exit_code = EXIT_CODE_OK;
+    t->exec_file_fd = 127;
+    t->exec_file_name = NULL;
   #endif
   list_push_back (&all_list, &t->allelem);
 }

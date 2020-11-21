@@ -299,6 +299,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   file = filesys_open (file_name);
+  t->files_map[127] = file;
+  t->exec_file_name = malloc(strlen(file_name) + 1);
+  strlcpy(t->exec_file_name, file_name, strlen(file_name) + 1);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -382,12 +385,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
+  file_deny_write(t->files_map[127]);
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  // 在这里不要关闭文件
   return success;
 }
 

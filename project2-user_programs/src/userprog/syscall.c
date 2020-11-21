@@ -12,6 +12,13 @@
 
 static void syscall_handler (struct intr_frame *);
 
+struct file 
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;                  /* Current position. */
+    bool deny_write;            /* Has file_deny_write() been called? */
+  };
+
 // syn-write
 struct lock filesys_lock;
 
@@ -42,7 +49,13 @@ put_user (uint8_t *udst, uint8_t byte)
 static void syscall_exit(int exit_code) {
 	if (lock_held_by_current_thread(&filesys_lock))
 		lock_release(&filesys_lock);
-	thread_current() -> exit_code = exit_code;
+	struct thread* cur = thread_current();
+	cur->exit_code = exit_code;
+	if (cur->exec_file_fd != -1) {
+		file_allow_write(cur->files_map[cur->exec_file_fd]);
+		file_close(cur->files_map[cur->exec_file_fd]);
+		cur->exec_file_fd = -1;
+	}
 	thread_exit();
 }
 
@@ -82,8 +95,9 @@ static int syscall_write(int fd, const void* buffer, unsigned size) {
 	else {
 		if (check_fd(fd)) {
 			struct file* f = thread_current() -> files_map[fd];
-			if (f) 
+			if (f) {
 				res = file_write(f, buffer, size);
+			}
 		}
 	}
 	lock_release(&filesys_lock);
@@ -121,13 +135,17 @@ static int syscall_read(int fd, void* buffer, unsigned size) {
 }
 
 static int syscall_open(const char* file) {
+	if (strcmp(file, thread_current()->exec_file_name) == 0)
+		return 127;
 	lock_acquire(&filesys_lock);
+	//printf("open file %s\n", file);
 	struct file* f = filesys_open(file);
 	if (!f) {
 		lock_release(&filesys_lock);
 		return -1;
 	}
 	thread_current() -> files_map[fd_now++] = f;
+	//printf("%x %x\n", f, thread_current() -> files_map[fd_now - 1]);
 	lock_release(&filesys_lock);
 	return fd_now - 1;
 }
@@ -187,8 +205,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			read_from_user(p + 3, &size, sizeof(size));
 			check_memory(buffer);
 			check_memory(buffer + size - 1);
-			syscall_write(fd, buffer, size);
-			f->eax = size;
+			f->eax = syscall_write(fd, buffer, size);
 			break;
 		}
 		case SYS_EXIT: {

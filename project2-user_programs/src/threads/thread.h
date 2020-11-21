@@ -109,6 +109,8 @@ struct thread
     struct thread* parent_process;
     struct list child_processes;
     struct file* files_map[OPEN_MAX];
+    int exec_file_fd;
+    char* exec_file_name;
 #endif
 
     /* Owned by thread.c. */
