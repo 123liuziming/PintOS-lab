@@ -20,7 +20,7 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     void* frame_page = palloc_get_page(PAL_USER | flag);
     struct vm_frame_entry* entry = malloc(sizeof(struct vm_frame_entry));
     entry->t = thread_current();
-    entry->is_map = false;
+    entry->is_map = true;
     entry->p_addr = frame_page;
     entry->u_addr = u_addr;
     list_insert(&all_frames, &entry->list_element);
@@ -28,6 +28,7 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     lock_release(&lock);
 }
 
+// flag是true的话连物理内存一起删除
 void vm_frame_release(void* p_addr, bool flag) {
     lock_acquire(&lock);
     struct vm_frame_entry* tmp;
@@ -36,7 +37,17 @@ void vm_frame_release(void* p_addr, bool flag) {
     struct vm_frame_entry* entry = hash_entry(h, struct vm_frame_entry, hash_element);
     hash_delete(&frame_map, &entry->hash_element);
     list_remove(&entry->list_element);
+    if (flag)
+        palloc_free_page(p_addr);
     lock_release(&lock);
+}
+
+void vm_frame_map(void* p_addr) {
+
+}
+
+void vm_frame_unmap(void* p_addr) {
+
 }
 
 static unsigned frame_hash_func (const struct hash_elem* elem, void* aux)
