@@ -1,8 +1,42 @@
 #include "vm/frame.h"
+#include "userprog/pagedir.h"
 
 static unsigned frame_hash_func (const struct hash_elem *elem, void *aux);
 static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux);
 
+static struct vm_frame_entry* frame_ptr = NULL;
+
+static struct vm_frame_entry* find_entry(void* p_addr) {
+    struct vm_frame_entry* tmp;
+    tmp->p_addr = p_addr;
+    struct hash_elem* h = hash_find(&frame_map, &tmp->hash_element);
+    struct vm_frame_entry* entry = hash_entry(h, struct vm_frame_entry, hash_element);
+    return entry;
+}
+
+static struct vm_frame_entry* next_frame() {
+    struct vm_frame_entry* next = NULL;
+    if (frame_ptr == NULL || frame_ptr == list_end(&all_frames))
+        next = list_begin(&all_frames);
+    else
+        next = list_next(&frame_ptr->list_element);
+    return next;
+}
+
+static struct vm_frame_entry* clock_eviction() {
+    int n = list_size(&all_frames);
+    int i;
+    for (i = 0; i < (n << 1); ++i) {
+        struct vm_frame_entry* frame = next_frame();
+        if (frame->is_map)
+            continue;
+        if (pagedir_is_accessed(thread_current()->pagedir, frame->u_addr))
+            pagedir_set_accessed(thread_current()->pagedir, frame->u_addr, false);
+        return frame;
+    }
+    // 没有可驱逐的页面了
+    return NULL;
+}
 
 void vm_frame_init() {
     lock_init(&lock);
@@ -31,10 +65,7 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
 // flag是true的话连物理内存一起删除
 void vm_frame_release(void* p_addr, bool flag) {
     lock_acquire(&lock);
-    struct vm_frame_entry* tmp;
-    tmp->p_addr = p_addr;
-    struct hash_elem* h = hash_find(&frame_map, &tmp->hash_element);
-    struct vm_frame_entry* entry = hash_entry(h, struct vm_frame_entry, hash_element);
+    struct vm_frame_entry* entry = find_entry(p_addr);
     hash_delete(&frame_map, &entry->hash_element);
     list_remove(&entry->list_element);
     if (flag)
@@ -43,11 +74,13 @@ void vm_frame_release(void* p_addr, bool flag) {
 }
 
 void vm_frame_map(void* p_addr) {
-
+    struct vm_frame_entry* entry = find_entry(p_addr);
+    entry->is_map = true;
 }
 
 void vm_frame_unmap(void* p_addr) {
-
+    struct vm_frame_entry* entry = find_entry(p_addr);
+    entry->is_map = false;
 }
 
 static unsigned frame_hash_func (const struct hash_elem* elem, void* aux)
