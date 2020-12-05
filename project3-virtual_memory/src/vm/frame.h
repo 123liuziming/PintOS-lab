@@ -31,6 +31,7 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag);
 void vm_frame_release(void* p_addr, bool flag);
 void vm_frame_map(void* p_addr);
 void vm_frame_ummap(void* p_addr);
+struct vm_frame_entry* find_entry(void* p_addr);
 
 
 #endif

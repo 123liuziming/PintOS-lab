@@ -6,7 +6,7 @@ static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b
 
 static struct vm_frame_entry* frame_ptr = NULL;
 
-static struct vm_frame_entry* find_entry(void* p_addr) {
+struct vm_frame_entry* find_entry(void* p_addr) {
     struct vm_frame_entry* tmp;
     tmp->p_addr = p_addr;
     struct hash_elem* h = hash_find(&frame_map, &tmp->hash_element);
