@@ -493,6 +493,9 @@ init_thread (struct thread *t, const char *name, int priority)
     t->exec_file_fd = 127;
     t->exec_file_name = NULL;
   #endif
+  #ifdef VM
+    t->spt = vm_create_supt();
+  #endif
   list_push_back (&all_list, &t->allelem);
 }
 
