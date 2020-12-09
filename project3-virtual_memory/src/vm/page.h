@@ -6,7 +6,8 @@
 enum page_status {
     FROM_SWAP,
     ON_FRAME,
-    FROM_FILESYS
+    FROM_FILESYS,
+    ALL_ZEROS
 };
 
 struct vm_sup_page_table {
@@ -24,7 +25,7 @@ struct vm_sup_page_table_entry {
     bool is_dirty;
     struct hash_elem hash_elem;
 };
-static struct vm_sup_page_table_entry* find_entry(struct thread* t, void* u_addr);
+static struct vm_sup_page_table_entry* find_entry(struct thread *t, void *u_addr);
 // 给每个线程建立补充页表
 struct vm_sup_page_table* vm_create_supt();
 // 四种情况 1. 从文件系统读入 2. zeros 3. 从交换分区读 4. 已经在内存中
@@ -34,5 +35,6 @@ bool vm_alloc_page_from_zeros(struct vm_sup_page_table* table, void* u_addr);
 bool vm_alloc_page_from_swap(struct vm_sup_page_table* table, int swap_index);
 bool vm_alloc_page_on_frame(struct vm_sup_page_table* table, void* u_addr, void* p_addr);
 // 将扩展页表条目和实际物理内存关联起来
+
 
 #endif
