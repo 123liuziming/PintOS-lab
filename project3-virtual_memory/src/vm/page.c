@@ -1,10 +1,12 @@
 #include "page.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
+#include "vm/frame.h"
 
 bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current(), u_addr))
+  if (!find_entry(thread_current()->spt, u_addr))
     return false;
   entry->file = file;
   entry->is_dirty = false;
@@ -12,10 +14,11 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
   entry->p_addr = NULL;
   return true;
 }
+
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current(), u_addr))
+  if (!find_entry(thread_current()->spt, u_addr))
     return false;
   entry->status = ALL_ZEROS;
   entry->p_addr = NULL;
@@ -25,10 +28,11 @@ bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
 bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, int swap_index) {
   return false;
 }
+
 bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void *p_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current(), u_addr))
+  if (!find_entry(thread_current()->spt, u_addr))
     return false;
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
@@ -36,8 +40,37 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
   return true;
 }
 
-void vm_get_page(void* u_addr) {
-  
+bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
+  struct vm_sup_page_table_entry* entry = find_entry(table, u_addr);
+  if (entry == NULL)
+    return false;
+  enum palloc_flags flag = entry->status == ALL_ZEROS ? PAL_ZERO : PAL_USER;
+  void* p_addr = vm_frame_alloc(u_addr, flag);
+  if (p_addr == NULL)
+    return false;
+  switch (entry->status) {
+    // 从文件系统读入 
+    case FROM_FILESYS: {
+      
+    }
+    case FROM_SWAP: {
+
+    }
+    // 已经有这页内存或者已经申请好了一页0内存,啥也不干,直接返回成功,继续执行
+    case ALL_ZEROS: 
+    case ON_FRAME:
+      return true;
+    default:
+      break;
+  }
+  // 缺页中断会重新执行一次之前的指令,所以我们这里要将物理页设置为不在使用的状态
+  // 等下一次使用该页,就会得到on_frame的状态,从而直接返回
+  entry->p_addr = p_addr;
+  entry->status = ON_FRAME;
+  pagedir_set_dirty(pagedir, u_addr, false);
+  vm_frame_unuse(p_addr);
+
+  return true;
 }
 
 struct vm_sup_page_table* vm_create_supt() {
@@ -46,10 +79,10 @@ struct vm_sup_page_table* vm_create_supt() {
   return table;
 }
 
-static struct vm_sup_page_table_entry* find_entry(struct thread *t, void *u_addr) {
+static struct vm_sup_page_table_entry* find_entry(struct vm_sup_page_table* table, void *u_addr) {
   struct vm_sup_page_table_entry *tmp;
   tmp->u_addr = u_addr;
-  struct hash_elem *h = hash_find(t->spt, &tmp->hash_elem);
+  struct hash_elem *h = hash_find(table, &tmp->hash_elem);
   if (h == NULL)
     return NULL;
   struct vm_sup_page_table_entry *entry = hash_entry(h, struct vm_sup_page_table_entry, hash_elem);

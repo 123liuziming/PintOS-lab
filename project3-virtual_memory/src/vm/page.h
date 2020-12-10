@@ -34,6 +34,10 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table* table, void* u_addr, s
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table* table, void* u_addr);
 bool vm_alloc_page_from_swap(struct vm_sup_page_table* table, int swap_index);
 bool vm_alloc_page_on_frame(struct vm_sup_page_table* table, void* u_addr, void* p_addr);
+
+// 请求调页函数
+bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table);
+
 // 将扩展页表条目和实际物理内存关联起来
 
 

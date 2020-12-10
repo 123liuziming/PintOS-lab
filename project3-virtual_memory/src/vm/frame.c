@@ -73,12 +73,12 @@ void vm_frame_release(void* p_addr, bool flag) {
     lock_release(&lock);
 }
 
-void vm_frame_map(void* p_addr) {
+void vm_frame_use(void* p_addr) {
     struct vm_frame_entry* entry = find_entry(p_addr);
     entry->is_map = true;
 }
 
-void vm_frame_unmap(void* p_addr) {
+void vm_frame_unuse(void* p_addr) {
     struct vm_frame_entry* entry = find_entry(p_addr);
     entry->is_map = false;
 }
