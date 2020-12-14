@@ -2,8 +2,12 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "vm/frame.h"
+#include "filesys/file.h"
+#include "threads/vaddr.h"
+#include <stdlib.h>
 
-bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file) {
+
+bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file, off_t offset, int read_bytes, int zero_bytes) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
   if (!find_entry(thread_current()->spt, u_addr))
@@ -12,6 +16,9 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
   entry->is_dirty = false;
   entry->status = FROM_FILESYS;
   entry->p_addr = NULL;
+  entry->file_offset = offset;
+  entry->read_bytes = read_bytes;
+  entry->zero_bytes = zero_bytes;
   return true;
 }
 
@@ -40,6 +47,8 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
   return true;
 }
 
+
+
 bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
   struct vm_sup_page_table_entry* entry = find_entry(table, u_addr);
   if (entry == NULL)
@@ -51,7 +60,18 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
   switch (entry->status) {
     // 从文件系统读入 
     case FROM_FILESYS: {
-      
+      file_seek(entry->file, entry->file_offset);
+      int bytes = file_read(entry->file, p_addr, entry->read_bytes);
+      // 读不成功,返回false
+      if (bytes != entry->read_bytes) {
+        return false;
+      }
+      // 补全0
+      ASSERT(PGSIZE - bytes == entry->zero_bytes);
+      if (bytes != PGSIZE) {
+          memset(p_addr + bytes, 0, PGSIZE - bytes);
+      }
+      break;
     }
     case FROM_SWAP: {
 

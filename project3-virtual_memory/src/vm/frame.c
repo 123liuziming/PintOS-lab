@@ -52,6 +52,10 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     */
     lock_acquire(&lock);
     void* frame_page = palloc_get_page(PAL_USER | flag);
+    if (!frame_page) {
+        struct vm_frame_entry* entry = next_frame();
+        
+    }
     struct vm_frame_entry* entry = malloc(sizeof(struct vm_frame_entry));
     entry->t = thread_current();
     entry->is_map = true;
