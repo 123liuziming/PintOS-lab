@@ -1,5 +1,6 @@
 #include "vm/frame.h"
 #include "userprog/pagedir.h"
+#include "vm/swap.h"
 
 static unsigned frame_hash_func (const struct hash_elem *elem, void *aux);
 static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux);
@@ -53,8 +54,14 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     lock_acquire(&lock);
     void* frame_page = palloc_get_page(PAL_USER | flag);
     if (!frame_page) {
-        struct vm_frame_entry* entry = next_frame();
-        
+        struct vm_frame_entry* entry = clock_eviction();
+        // 标记此页面为不可用
+        pagedir_clear_page(entry->t->pagedir, entry->u_addr);
+        // 把此页面放到交换分区
+        int swap_index = swap_out(entry->p_addr);
+        vm_alloc_page_from_swap(thread_current()->spt, swap_index);
+        vm_frame_release(entry->p_addr, true);
+        frame_page = palloc_get_page(PAL_USER | flag);
     }
     struct vm_frame_entry* entry = malloc(sizeof(struct vm_frame_entry));
     entry->t = thread_current();

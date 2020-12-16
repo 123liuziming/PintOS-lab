@@ -153,6 +153,13 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  #if VM
+  if (not_present) {
+     if (!vm_get_page(cur->spt, cur->pagedir, fault_addr))
+      PANIC("not enough memory");
+  }
+  #endif
+
   if (!user) {
      f->eip = (void*) f->eax;
      f->eax = -1;

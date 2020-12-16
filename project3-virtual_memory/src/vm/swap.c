@@ -11,17 +11,17 @@ bool swap_in(int swap_index, void* p_addr) {
     return true;
 }
 
-bool swap_out(void* p_addr) {
+int swap_out(void* p_addr) {
     int i = 0;
     // 找一个空闲的
     int swap_index = bitmap_scan(swap_map, 0, 1, true);
     if (swap_index == BITMAP_ERROR)
-        return false;
+        return -1;
     for (i = 0; i < SECTORS_PER_PAGE; ++i) {
         block_write(swap_block, swap_index * SECTORS_PER_PAGE + i, p_addr);
     }
     bitmap_set(swap_block, swap_index, false);
-    return true;
+    return swap_index;
 }
 
 void swap_init() {

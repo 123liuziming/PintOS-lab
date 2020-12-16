@@ -4,6 +4,7 @@
 #include "vm/frame.h"
 #include "filesys/file.h"
 #include "threads/vaddr.h"
+#include "vm/swap.h"
 #include <stdlib.h>
 
 
@@ -19,7 +20,7 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
   entry->file_offset = offset;
   entry->read_bytes = read_bytes;
   entry->zero_bytes = zero_bytes;
-  return true;
+  return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
@@ -30,10 +31,18 @@ bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
   entry->status = ALL_ZEROS;
   entry->p_addr = NULL;
   entry->is_dirty = false;
-  return true;
+  return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, int swap_index) {
-  return false;
+  struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
+  entry->u_addr = u_addr;
+  if (!find_entry(thread_current()->spt, u_addr))
+    return false;
+  entry->status = FROM_SWAP;
+  entry->p_addr = NULL;
+  entry->is_dirty = false;
+  entry->swap_index = swap_index;
+  return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 
 bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void *p_addr) {
@@ -44,7 +53,7 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
   entry->is_dirty = false;
-  return true;
+  return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 
 
@@ -74,7 +83,8 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
       break;
     }
     case FROM_SWAP: {
-
+        swap_in(entry->swap_index, p_addr);
+        break;
     }
     // 已经有这页内存或者已经申请好了一页0内存,啥也不干,直接返回成功,继续执行
     case ALL_ZEROS: 
