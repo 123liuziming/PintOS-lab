@@ -49,7 +49,6 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     /*
         在frame的list和hash_table中都加一项
         返回申请到的物理内存地址
-        TODO: 考虑申请不到页面的时候,将页面换出
     */
     lock_acquire(&lock);
     void* frame_page = palloc_get_page(PAL_USER | flag);
