@@ -5,7 +5,10 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
+#define MAX_STACK_SIZE 0x800000
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -155,11 +158,26 @@ page_fault (struct intr_frame *f)
 
   #if VM
   if (not_present) {
-     if (!vm_get_page(cur->spt, cur->pagedir, fault_addr))
-      PANIC("not enough memory");
+      // 判断是否是栈生长导致的页错误
+     // 可能会有push与pusha指令,一个减一个字节,一个减四个字节
+     // 可能是用户程序导致的栈溢出
+     // 或者是在内核态读取了用户内存导致的页错误,这种情况下用之前记录的栈地址可解决
+     void* esp = user ? f->esp : thread_current()->origin_stack;
+     bool is_stack_access = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
+     bool is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
+     if (is_stack_access && is_stack_addr) {
+        if (!find_entry(thread_current()->spt, fault_addr)) {
+           vm_alloc_page_from_zeros(thread_current()->spt, fault_addr);
+         }
+      }
+     if (!vm_get_page(cur->spt, cur->pagedir, fault_addr)) {
+        goto NO_PAGE;
+     }
   }
+  
   #endif
 
+  NO_PAGE: 
   if (!user) {
      f->eip = (void*) f->eax;
      f->eax = -1;

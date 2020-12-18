@@ -115,6 +115,8 @@ struct thread
 #endif
 #ifdef VM
     struct vm_sup_page_table* spt;
+    // 保存的esp
+    uint8_t* origin_stack;
 #endif
 
     /* Owned by thread.c. */
