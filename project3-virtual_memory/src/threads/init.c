@@ -37,7 +37,11 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-
+#ifdef VM
+#include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
+#endif
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -86,6 +90,7 @@ main (void)
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
+  printf("fuck you\n");
   console_init ();  
 
   /* Greet user. */
@@ -109,6 +114,10 @@ main (void)
 #ifdef USERPROG
   exception_init ();
   syscall_init ();
+#endif
+#ifdef VM
+  swap_init();
+  vm_frame_init();
 #endif
   fd_now = 3;
   pid_hash_map_lock = (struct lock*) malloc(sizeof(struct lock));

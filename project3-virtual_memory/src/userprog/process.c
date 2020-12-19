@@ -21,6 +21,8 @@
 #include "devices/timer.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
