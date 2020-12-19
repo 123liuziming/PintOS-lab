@@ -116,7 +116,7 @@ static bool spt_less_func(const struct hash_elem *a, const struct hash_elem *b) 
 
 struct vm_sup_page_table* vm_create_supt() {
   struct vm_sup_page_table *table = (struct vm_sup_page_table *)malloc(sizeof(struct vm_sup_page_table));
-  hash_init(&table, spt_hash_func, spt_less_func, NULL);
+  hash_init(&table->page_map, spt_hash_func, spt_less_func, NULL);
   return table;
 }
 

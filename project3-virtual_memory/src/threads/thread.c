@@ -222,8 +222,6 @@ thread_create (const char *name, int priority,
     struct thread* tmp = (struct thread*) malloc(PGSIZE);
     memcpy(tmp, t, PGSIZE);
     pid_hash_map[tid] = tmp;
-    
-    
   #endif
   intr_set_level (old_level);
 
@@ -492,9 +490,6 @@ init_thread (struct thread *t, const char *name, int priority)
     t->exit_code = EXIT_CODE_OK;
     t->exec_file_fd = 127;
     t->exec_file_name = NULL;
-  #endif
-  #ifdef VM
-    t->spt = vm_create_supt();
   #endif
   list_push_back (&all_list, &t->allelem);
 }

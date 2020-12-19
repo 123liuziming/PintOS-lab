@@ -90,7 +90,6 @@ main (void)
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
-  printf("fuck you\n");
   console_init ();  
 
   /* Greet user. */
@@ -115,10 +114,6 @@ main (void)
   exception_init ();
   syscall_init ();
 #endif
-#ifdef VM
-  swap_init();
-  vm_frame_init();
-#endif
   fd_now = 3;
   pid_hash_map_lock = (struct lock*) malloc(sizeof(struct lock));
   lock_init(pid_hash_map_lock);
@@ -136,7 +131,12 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
-
+#ifdef VM
+  thread_current()->spt = vm_create_supt();
+  swap_init();
+  vm_frame_init();
+#endif
+  
   printf ("Boot complete.\n");
   /* Run actions specified on kernel command line. */
   run_actions (argv);

@@ -26,6 +26,10 @@ int swap_out(void* p_addr) {
 
 void swap_init() {
     swap_block = block_get_role(BLOCK_SWAP);
+    if (swap_block == NULL) {
+        PANIC ("Error: Can't initialize swap block");
+        NOT_REACHED ();
+    }
     // 看这个块可以装多少页
     int page_num = block_size(swap_block) / SECTORS_PER_PAGE;
     swap_map = bitmap_create(page_num);
