@@ -11,7 +11,7 @@
 bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file, off_t offset, int read_bytes, int zero_bytes) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(thread_current()->spt, u_addr))
     return false;
   entry->file = file;
   entry->is_dirty = false;
@@ -26,17 +26,17 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(thread_current()->spt, u_addr))
     return false;
   entry->status = ALL_ZEROS;
   entry->p_addr = NULL;
   entry->is_dirty = false;
   return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
-bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, int swap_index) {
+bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(thread_current()->spt, u_addr))
     return false;
   entry->status = FROM_SWAP;
   entry->p_addr = NULL;
@@ -48,7 +48,7 @@ bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, int swap_index) {
 bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void *p_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(thread_current()->spt, u_addr))
     return false;
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
@@ -59,7 +59,7 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
 
 
 bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
-  struct vm_sup_page_table_entry* entry = find_entry(table, u_addr);
+  struct vm_sup_page_table_entry* entry = find_supt_entry(table, u_addr);
   if (entry == NULL)
     return false;
   enum palloc_flags flag = entry->status == ALL_ZEROS ? PAL_ZERO : PAL_USER;
@@ -98,25 +98,9 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
   pagedir_set_dirty(pagedir, u_addr, false);
-  vm_frame_unuse(p_addr);
+  vm_frame_unpin(p_addr);
 
   return true;
-}
-
-struct vm_sup_page_table* vm_create_supt() {
-  struct vm_sup_page_table *table = (struct vm_sup_page_table *)malloc(sizeof(struct vm_sup_page_table));
-  hash_init(&table, spt_hash_func, spt_less_func, NULL);
-  return table;
-}
-
-static struct vm_sup_page_table_entry* find_entry(struct vm_sup_page_table* table, void *u_addr) {
-  struct vm_sup_page_table_entry *tmp;
-  tmp->u_addr = u_addr;
-  struct hash_elem *h = hash_find(table, &tmp->hash_elem);
-  if (h == NULL)
-    return NULL;
-  struct vm_sup_page_table_entry *entry = hash_entry(h, struct vm_sup_page_table_entry, hash_elem);
-  return entry;
 }
 
 static unsigned spt_hash_func(const struct hash_elem *elem, void *aux) {
@@ -128,4 +112,20 @@ static bool spt_less_func(const struct hash_elem *a, const struct hash_elem *b) 
   struct vm_sup_page_table_entry *a_entry = hash_entry(a, struct vm_sup_page_table_entry, hash_elem);
   struct vm_sup_page_table_entry *b_entry = hash_entry(b, struct vm_sup_page_table_entry, hash_elem);
   return a_entry->u_addr < b_entry->u_addr;
+}
+
+struct vm_sup_page_table* vm_create_supt() {
+  struct vm_sup_page_table *table = (struct vm_sup_page_table *)malloc(sizeof(struct vm_sup_page_table));
+  hash_init(&table, spt_hash_func, spt_less_func, NULL);
+  return table;
+}
+
+struct vm_sup_page_table_entry* find_supt_entry(struct vm_sup_page_table* table, void *u_addr) {
+  struct vm_sup_page_table_entry *tmp;
+  tmp->u_addr = u_addr;
+  struct hash_elem *h = hash_find(table, &tmp->hash_elem);
+  if (h == NULL)
+    return NULL;
+  struct vm_sup_page_table_entry *entry = hash_entry(h, struct vm_sup_page_table_entry, hash_elem);
+  return entry;
 }

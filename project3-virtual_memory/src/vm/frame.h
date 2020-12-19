@@ -17,7 +17,7 @@ struct vm_frame_entry {
     // 链表条目,用于获取到所有的entry(用于页面驱逐算法)
     struct list_elem list_element;
     // 此物理页面是否和虚拟内存映射了
-    bool is_map;
+    bool is_pin;
     // 正在使用此帧的线程
     struct thread* t;
 };
@@ -29,8 +29,8 @@ static struct lock lock;
 void vm_frame_init();
 void* vm_frame_alloc(void* u_addr, enum palloc_flags flag);
 void vm_frame_release(void* p_addr, bool flag);
-void vm_frame_use(void* p_addr);
-void vm_frame_unuse(void* p_addr);
+void vm_frame_pin(void* p_addr);
+void vm_frame_unpin(void* p_addr);
 struct vm_frame_entry* find_entry(void* p_addr);
 
 

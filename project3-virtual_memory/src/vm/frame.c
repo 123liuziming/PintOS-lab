@@ -29,7 +29,7 @@ static struct vm_frame_entry* clock_eviction() {
     int i;
     for (i = 0; i < (n << 1); ++i) {
         struct vm_frame_entry* frame = next_frame();
-        if (frame->is_map)
+        if (frame->is_pin)
             continue;
         if (pagedir_is_accessed(thread_current()->pagedir, frame->u_addr))
             pagedir_set_accessed(thread_current()->pagedir, frame->u_addr, false);
@@ -58,13 +58,13 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
         pagedir_clear_page(entry->t->pagedir, entry->u_addr);
         // 把此页面放到交换分区
         int swap_index = swap_out(entry->p_addr);
-        vm_alloc_page_from_swap(thread_current()->spt, swap_index);
+        vm_alloc_page_from_swap(thread_current()->spt, u_addr, swap_index);
         vm_frame_release(entry->p_addr, true);
         frame_page = palloc_get_page(PAL_USER | flag);
     }
     struct vm_frame_entry* entry = malloc(sizeof(struct vm_frame_entry));
     entry->t = thread_current();
-    entry->is_map = true;
+    entry->is_pin = true;
     entry->p_addr = frame_page;
     entry->u_addr = u_addr;
     list_insert(&all_frames, &entry->list_element);
@@ -83,14 +83,14 @@ void vm_frame_release(void* p_addr, bool flag) {
     lock_release(&lock);
 }
 
-void vm_frame_use(void* p_addr) {
+void vm_frame_pin(void* p_addr) {
     struct vm_frame_entry* entry = find_entry(p_addr);
-    entry->is_map = true;
+    entry->is_pin = true;
 }
 
-void vm_frame_unuse(void* p_addr) {
+void vm_frame_unpin(void* p_addr) {
     struct vm_frame_entry* entry = find_entry(p_addr);
-    entry->is_map = false;
+    entry->is_pin = false;
 }
 
 static unsigned frame_hash_func (const struct hash_elem* elem, void* aux)
