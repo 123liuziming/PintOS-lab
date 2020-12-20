@@ -100,6 +100,9 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
+#ifdef VM
+  vm_frame_init();
+#endif
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
@@ -132,9 +135,7 @@ main (void)
   filesys_init (format_filesys);
 #endif
 #ifdef VM
-  thread_current()->spt = vm_create_supt();
   swap_init();
-  vm_frame_init();
 #endif
   
   printf ("Boot complete.\n");
