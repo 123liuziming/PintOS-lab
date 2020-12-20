@@ -163,7 +163,6 @@ page_fault (struct intr_frame *f)
   #ifdef VM
   if (not_present) {
      void* fault_page = (void*) pg_round_down(fault_addr);
-     printf(" not present! %x %x\n", fault_page, thread_current()->spt);
       // 判断是否是栈生长导致的页错误
      // 可能会有push与pusha指令,一个减一个字节,一个减四个字节
      // 可能是用户程序导致的栈溢出
@@ -183,12 +182,10 @@ page_fault (struct intr_frame *f)
      return;
   }
 
-  
+  NO_PAGE:
   #endif
-
-  NO_PAGE: 
+ 
   if (!user) {
-     printf("not user\n");
      f->eip = (void*) f->eax;
      f->eax = -1;
      return;

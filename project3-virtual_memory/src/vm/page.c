@@ -19,7 +19,6 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
   entry->read_bytes = read_bytes;
   entry->zero_bytes = zero_bytes;
   entry->writeable = writeable;
-  printf("read, zero : %d %d\n", read_bytes, zero_bytes);
   return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 
@@ -54,14 +53,12 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
 
 
 bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
-  printf("get page start\n");
   struct vm_sup_page_table_entry* entry = find_supt_entry(table, u_addr);
   if (entry == NULL)
     return false;
-  printf("get page not null\n");
-  enum palloc_flags flag = entry->status == ALL_ZEROS ? PAL_ZERO : PAL_USER;
-  void* p_addr = vm_frame_alloc(u_addr, flag);
-  printf("alloc frame finish\n");
+  if (entry->status == ON_FRAME)
+    return true;
+  void* p_addr = vm_frame_alloc(u_addr, PAL_USER);
   if (p_addr == NULL)
     return false;
   bool writeable = true;
@@ -72,6 +69,7 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
       int bytes = file_read(entry->file, p_addr, entry->read_bytes);
       // 读不成功,返回false
       if (bytes != entry->read_bytes) {
+        vm_frame_release(p_addr, false);
         return false;
       }
       // 补全0
@@ -86,10 +84,11 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
         swap_in(entry->swap_index, p_addr);
         break;
     }
-    // 已经有这页内存或者已经申请好了一页0内存,啥也不干,直接返回成功,继续执行
-    case ALL_ZEROS: 
-    case ON_FRAME:
-      return true;
+    // 已经申请好了一页0内存,啥也不干,直接返回成功,继续执行
+    case ALL_ZEROS: {
+      memset(p_addr, 0, PGSIZE);
+      break;
+    }
     default:
       break;
   }

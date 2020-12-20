@@ -57,7 +57,7 @@ static inline uintptr_t pd_no (const void *va) {
    When a PDE or PTE is not "present", the other flags are
    ignored.
    A PDE or PTE that is initialized to 0 will be interpreted as
-   "not present", which is just fine. */
+   "", which is just fine. */
 #define PTE_FLAGS 0x00000fff    /* Flag bits. */
 #define PTE_ADDR  0xfffff000    /* Address bits. */
 #define PTE_AVL   0x00000e00    /* Bits available for OS use. */

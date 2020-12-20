@@ -135,9 +135,9 @@ start_process (void *file_name_)
   if_.esp -= 4;
   *((int*)(if_.esp)) = 0;
 
-  free(full_str);
-  free(file_name);
-  free(name_str);
+  //free(full_str);
+  //free(file_name);
+  //free(name_str);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -492,11 +492,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       #ifdef VM
-      printf("load pages %s\n", thread_name());
-      ASSERT (pagedir_get_page(thread_current()->pagedir, upage) == NULL); // no virtual page yet?
+      ASSERT (pagedir_get_page(thread_current()->pagedir, upage) == NULL);
       if (!vm_alloc_page_from_filesys(thread_current()->spt, upage, file, ofs, page_read_bytes, page_zero_bytes, writable))
         return false;
-      printf("load pages finish %d %x\n", hash_size(&(thread_current()->spt->page_map)), upage);
       #else
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -526,7 +524,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       ofs += PGSIZE;
       #endif
     }
-  printf("segment finish\n");
   return true;
 }
 
@@ -538,11 +535,10 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
   // 替换内存申请函数
-  kpage = vm_frame_alloc (((uint8_t *) PHYS_BASE) - PGSIZE, PAL_USER | PAL_ZERO);
-  printf("kpage finish %x\n", kpage);
+  kpage = vm_frame_alloc ((PHYS_BASE - PGSIZE), PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page ((PHYS_BASE - PGSIZE), kpage, true);
       if (success)
         *esp = PHYS_BASE;
       else
@@ -571,7 +567,8 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable);
   #ifdef VM
   result &= vm_alloc_page_on_frame(t->spt, upage, kpage);
-  printf("load pages finish %d %x %d\n", hash_size(&(thread_current()->spt->page_map)), upage, result);
+  if (result)
+    vm_frame_unpin(kpage);
   #endif
   return result;
 }
