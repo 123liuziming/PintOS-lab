@@ -1,6 +1,7 @@
 #include "vm/frame.h"
 #include "userprog/pagedir.h"
 #include "vm/swap.h"
+#include <stdio.h>
 
 static unsigned frame_hash_func (const struct hash_elem *elem, void *aux);
 static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux);
@@ -62,14 +63,15 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
         vm_frame_release(entry->p_addr, true);
         frame_page = palloc_get_page(PAL_USER | flag);
     }
-    struct vm_frame_entry* entry = malloc(sizeof(struct vm_frame_entry));
+    struct vm_frame_entry* entry = (struct vm_frame_entry*) malloc(sizeof(struct vm_frame_entry));
     entry->t = thread_current();
     entry->is_pin = true;
     entry->p_addr = frame_page;
     entry->u_addr = u_addr;
-    list_insert(&all_frames, &entry->list_element);
+    list_push_back(&all_frames, &entry->list_element);
     hash_insert(&frame_map, &entry->hash_element);
     lock_release(&lock);
+    return frame_page;
 }
 
 // flag是true的话连物理内存一起删除

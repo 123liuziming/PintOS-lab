@@ -31,16 +31,15 @@
 #else
 #include "tests/threads/tests.h"
 #endif
+#ifdef VM
+#include "vm/frame.h"
+#include "vm/swap.h"
+#endif
 #ifdef FILESYS
 #include "devices/block.h"
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
-#endif
-#ifdef VM
-#include "vm/frame.h"
-#include "vm/page.h"
-#include "vm/swap.h"
 #endif
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;

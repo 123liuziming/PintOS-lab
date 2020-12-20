@@ -162,6 +162,8 @@ page_fault (struct intr_frame *f)
 
   #ifdef VM
   if (not_present) {
+     void* fault_page = (void*) pg_round_down(fault_addr);
+     printf(" not present! %x %x\n", fault_page, thread_current()->spt);
       // 判断是否是栈生长导致的页错误
      // 可能会有push与pusha指令,一个减一个字节,一个减四个字节
      // 可能是用户程序导致的栈溢出
@@ -171,19 +173,22 @@ page_fault (struct intr_frame *f)
      bool is_stack_access = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
      bool is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
      if (is_stack_access && is_stack_addr) {
-        if (!find_supt_entry(cur->spt, fault_addr)) {
-           vm_alloc_page_from_zeros(cur->spt, fault_addr);
+        if (!find_supt_entry(cur->spt, fault_page)) {
+           vm_alloc_page_from_zeros(cur->spt, fault_page);
          }
       }
-     if (!vm_get_page(cur->spt, cur->pagedir, fault_addr)) {
+     if (!vm_get_page(cur->pagedir, fault_page, cur->spt)) {
         goto NO_PAGE;
      }
+     return;
   }
+
   
   #endif
 
   NO_PAGE: 
   if (!user) {
+     printf("not user\n");
      f->eip = (void*) f->eax;
      f->eax = -1;
      return;

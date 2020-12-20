@@ -23,7 +23,8 @@
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
-
+#include "userprog/pagedir.h"
+#include <hash.h>
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -56,7 +57,6 @@ tid_t
   int i;
   printf("%s\n", real_name);
   sema_down(pid_hash_map[tid]->parent_sema);
-  printf("aaa\n");
   //printf("fn_copy is %s\n", fn_copy);
   if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
     pid_hash_map[tid] = NULL;
@@ -405,7 +405,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
   file_deny_write(t->files_map[127]);
   success = true;
-
  done:
   /* We arrive here whether the load is successful or not. */
   // 在这里不要关闭文件
@@ -493,8 +492,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       #ifdef VM
-      if (!vm_alloc_page_from_filesys(thread_current()->spt, upage, file, ofs, read_bytes, zero_bytes))
+      printf("load pages %s\n", thread_name());
+      ASSERT (pagedir_get_page(thread_current()->pagedir, upage) == NULL); // no virtual page yet?
+      if (!vm_alloc_page_from_filesys(thread_current()->spt, upage, file, ofs, page_read_bytes, page_zero_bytes, writable))
         return false;
+      printf("load pages finish %d %x\n", hash_size(&(thread_current()->spt->page_map)), upage);
       #else
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -520,7 +522,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      #ifdef VM
+      ofs += PGSIZE;
+      #endif
     }
+  printf("segment finish\n");
   return true;
 }
 
@@ -531,16 +537,16 @@ setup_stack (void **esp)
 {
   uint8_t *kpage;
   bool success = false;
-
   // 替换内存申请函数
   kpage = vm_frame_alloc (((uint8_t *) PHYS_BASE) - PGSIZE, PAL_USER | PAL_ZERO);
+  printf("kpage finish %x\n", kpage);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+        vm_frame_release(kpage, true);
     }
   return success;
 }
@@ -565,6 +571,7 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable);
   #ifdef VM
   result &= vm_alloc_page_on_frame(t->spt, upage, kpage);
+  printf("load pages finish %d %x %d\n", hash_size(&(thread_current()->spt->page_map)), upage, result);
   #endif
   return result;
 }
