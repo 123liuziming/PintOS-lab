@@ -54,8 +54,9 @@ tid_t
   //printf("%s\n", real_name);
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
   int i;
+  printf("%s\n", real_name);
   sema_down(pid_hash_map[tid]->parent_sema);
-  
+  printf("aaa\n");
   //printf("fn_copy is %s\n", fn_copy);
   if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
     pid_hash_map[tid] = NULL;

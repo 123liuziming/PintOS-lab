@@ -6,12 +6,12 @@
 #include "threads/vaddr.h"
 #include "vm/swap.h"
 #include <stdlib.h>
-
+#include <stdio.h>
 
 bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file, off_t offset, int read_bytes, int zero_bytes) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_supt_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(table, u_addr))
     return false;
   entry->file = file;
   entry->is_dirty = false;
@@ -26,7 +26,7 @@ bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, s
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_supt_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(table, u_addr))
     return false;
   entry->status = ALL_ZEROS;
   entry->p_addr = NULL;
@@ -36,7 +36,7 @@ bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
 bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_supt_entry(thread_current()->spt, u_addr))
+  if (!find_supt_entry(table, u_addr))
     return false;
   entry->status = FROM_SWAP;
   entry->p_addr = NULL;
@@ -48,11 +48,13 @@ bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, void* u_addr, int 
 bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void *p_addr) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
-  if (!find_supt_entry(thread_current()->spt, u_addr))
+  printf("frame\n");
+  if (!find_supt_entry(table, u_addr))
     return false;
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
   entry->is_dirty = false;
+  printf("frame\n");
   return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
 
@@ -121,9 +123,9 @@ struct vm_sup_page_table* vm_create_supt() {
 }
 
 struct vm_sup_page_table_entry* find_supt_entry(struct vm_sup_page_table* table, void *u_addr) {
-  struct vm_sup_page_table_entry *tmp;
+  struct vm_sup_page_table_entry *tmp = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   tmp->u_addr = u_addr;
-  struct hash_elem *h = hash_find(table, &tmp->hash_elem);
+  struct hash_elem *h = hash_find(&table->page_map, &tmp->hash_elem);
   if (h == NULL)
     return NULL;
   struct vm_sup_page_table_entry *entry = hash_entry(h, struct vm_sup_page_table_entry, hash_elem);
