@@ -6,7 +6,7 @@
 static unsigned frame_hash_func (const struct hash_elem *elem, void *aux);
 static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void* aux);
 
-static struct vm_frame_entry* frame_ptr = NULL;
+static struct list_elem* frame_ptr = NULL;
 
 struct vm_frame_entry* find_entry(void* p_addr) {
     struct vm_frame_entry tmp;
@@ -21,19 +21,21 @@ static struct vm_frame_entry* next_frame() {
     if (frame_ptr == NULL || frame_ptr == list_end(&all_frames))
         next = list_begin(&all_frames);
     else
-        next = list_next(&frame_ptr->list_element);
-    return next;
+        next = list_next(frame_ptr);
+    return list_entry(frame_ptr, struct vm_frame_entry, list_element);
 }
 
 static struct vm_frame_entry* clock_eviction() {
     int n = list_size(&all_frames);
     int i;
-    for (i = 0; i < (n << 1); ++i) {
+    for (i = 0; i <= (n << 1); ++i) {
         struct vm_frame_entry* frame = next_frame();
         if (frame->is_pin)
             continue;
-        if (pagedir_is_accessed(thread_current()->pagedir, frame->u_addr))
+        if (pagedir_is_accessed(thread_current()->pagedir, frame->u_addr)) {
             pagedir_set_accessed(thread_current()->pagedir, frame->u_addr, false);
+            continue;
+        }
         return frame;
     }
     // 没有可驱逐的页面了
