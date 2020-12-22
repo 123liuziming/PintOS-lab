@@ -17,16 +17,16 @@ struct vm_frame_entry* find_entry(void* p_addr) {
 }
 
 static struct vm_frame_entry* next_frame() {
-    struct vm_frame_entry* next = NULL;
     if (frame_ptr == NULL || frame_ptr == list_end(&all_frames))
-        next = list_begin(&all_frames);
+        frame_ptr = list_begin(&all_frames);
     else
-        next = list_next(frame_ptr);
+        frame_ptr = list_next(frame_ptr);
     return list_entry(frame_ptr, struct vm_frame_entry, list_element);
 }
 
 static struct vm_frame_entry* clock_eviction() {
     int n = list_size(&all_frames);
+    // printf("lists %d\n", n);
     int i;
     for (i = 0; i <= (n << 1); ++i) {
         struct vm_frame_entry* frame = next_frame();
