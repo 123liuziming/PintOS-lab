@@ -136,14 +136,12 @@ static int syscall_open(const char* file) {
 	if (strcmp(file, thread_current()->exec_file_name) == 0)
 		return 127;
 	lock_acquire(&filesys_lock);
-	//printf("open file %s\n", file);
 	struct file* f = filesys_open(file);
 	if (!f) {
 		lock_release(&filesys_lock);
 		return -1;
 	}
 	thread_current() -> files_map[fd_now++] = f;
-	//printf("%x %x\n", f, thread_current() -> files_map[fd_now - 1]);
 	lock_release(&filesys_lock);
 	return fd_now - 1;
 }

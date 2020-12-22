@@ -46,18 +46,14 @@ tid_t
   // 这里要拆分出文件名,参数数组
   char* real_name;
   char* save_ptr;
-  //printf("%s\n", file_name);
   char* file_name_cpy = malloc(strlen(file_name) + 1);
   strlcpy(file_name_cpy, file_name, PGSIZE);
   // real_name即为文件名
   real_name = strtok_r(file_name_cpy, " ", &save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  //printf("%s\n", real_name);
   tid = thread_create (real_name, PRI_DEFAULT, start_process, fn_copy);
   int i;
-  printf("%s\n", real_name);
   sema_down(pid_hash_map[tid]->parent_sema);
-  //printf("fn_copy is %s\n", fn_copy);
   if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
     pid_hash_map[tid] = NULL;
     return -1;
@@ -135,9 +131,9 @@ start_process (void *file_name_)
   if_.esp -= 4;
   *((int*)(if_.esp)) = 0;
 
-  //free(full_str);
-  //free(file_name);
-  //free(name_str);
+  free(full_str);
+  free(file_name);
+  free(name_str);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -146,7 +142,6 @@ start_process (void *file_name_)
      and jump to it. */
   palloc_free_page (file_name_);
   //hex_dump(if_.esp, if_.esp, PHYS_BASE - (if_.esp), true);
-  //printf("%x\n", if_.eip);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
@@ -184,7 +179,6 @@ process_exit (void)
   printf("%s: exit(%d)\n",cur->name, pid_hash_map[cur->tid]->exit_code);
   sema_up(thread_current() -> parent_sema);
   uint32_t *pd;
-  //printf("%d ", cur->tid);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   if (cur->exec_file_name != NULL) {
