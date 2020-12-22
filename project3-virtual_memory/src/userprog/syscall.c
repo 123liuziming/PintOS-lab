@@ -222,7 +222,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   //hex_dump(f->esp, f->esp,PHYS_BASE - (f->esp),true);
   int system_call = * p;
   // 保存原始栈
-  thread_current()->origin_stack = thread_current()->stack;
+  thread_current()->origin_stack = f->esp;
 
 	switch (system_call)
 	{

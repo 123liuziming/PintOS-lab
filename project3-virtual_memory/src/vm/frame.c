@@ -86,13 +86,17 @@ void vm_frame_release(void* p_addr, bool flag) {
 }
 
 void vm_frame_pin(void* p_addr) {
+    lock_acquire(&lock);
     struct vm_frame_entry* entry = find_entry(p_addr);
     entry->is_pin = true;
+    lock_release(&lock);
 }
 
 void vm_frame_unpin(void* p_addr) {
+    lock_acquire(&lock);
     struct vm_frame_entry* entry = find_entry(p_addr);
     entry->is_pin = false;
+    lock_release(&lock);
 }
 
 static unsigned frame_hash_func (const struct hash_elem* elem, void* aux)
