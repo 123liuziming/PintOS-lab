@@ -169,7 +169,7 @@ page_fault (struct intr_frame *f)
      // 或者是在内核态读取了用户内存导致的页错误,这种情况下用之前记录的栈地址可解决
      struct thread* cur = thread_current();
      void* esp = user ? f->esp : cur->origin_stack;
-     // printf("fault address %x %x\n", fault_addr, fault_page);
+     //printf("fault address %x %x\n", fault_addr, fault_page);
      bool is_stack_access = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
      bool is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
      if (is_stack_access && is_stack_addr) {

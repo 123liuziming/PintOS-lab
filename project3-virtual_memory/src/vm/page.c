@@ -30,14 +30,16 @@ bool vm_alloc_page_from_zeros(struct vm_sup_page_table *table, void *u_addr) {
   entry->is_dirty = false;
   return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
 }
-bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index) {
-  struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
-  entry->u_addr = u_addr;
+
+bool set_entry_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index) {
+  struct vm_sup_page_table_entry *entry = find_supt_entry(table, u_addr);
+  if (entry == NULL)
+    return false;
   entry->status = FROM_SWAP;
   entry->p_addr = NULL;
-  entry->is_dirty = false;
   entry->swap_index = swap_index;
-  return hash_insert(&table->page_map, &entry->hash_elem) == NULL;
+  // hash_replace(&table->page_map, &entry->hash_elem);
+  return true;
 }
 
 bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void *p_addr) {
@@ -54,13 +56,17 @@ bool vm_alloc_page_on_frame(struct vm_sup_page_table *table, void *u_addr, void 
 
 bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
   struct vm_sup_page_table_entry* entry = find_supt_entry(table, u_addr);
-  if (entry == NULL)
+  if (entry == NULL) 
     return false;
-  if (entry->status == ON_FRAME)
+  if (entry->status == ON_FRAME) {
+    printf("it is on frame\n");
     return true;
+  }
   void* p_addr = vm_frame_alloc(u_addr, PAL_USER);
-  if (p_addr == NULL)
+  if (p_addr == NULL) {
+    printf("alloc fail\n");
     return false;
+  }
   bool writeable = true;
   switch (entry->status) {
     // 从文件系统读入 
@@ -80,7 +86,12 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
       writeable = entry->writeable;
       break;
     }
+    case ON_FRAME:
+    /* nothing to do */
+      break;
+
     case FROM_SWAP: {
+        //printf("swap!!!!!!! %x %d %x \n", p_addr, entry->swap_index, u_addr);
         swap_in(entry->swap_index, p_addr);
         break;
     }
@@ -93,14 +104,14 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
       break;
   }
   if (!pagedir_set_page(pagedir, u_addr, p_addr, writeable)) {
-    vm_frame_release(p_addr, false);
+    vm_frame_release(p_addr, true);
     return false;
   }
   // 缺页中断会重新执行一次之前的指令,所以我们这里要将物理页设置为不在使用的状态
   // 等下一次使用该页,就会得到on_frame的状态,从而直接返回
   entry->p_addr = p_addr;
   entry->status = ON_FRAME;
-  pagedir_set_dirty(pagedir, u_addr, false);
+  pagedir_set_dirty(pagedir, p_addr, false);
   vm_frame_unpin(p_addr);
 
   return true;
@@ -129,6 +140,5 @@ struct vm_sup_page_table_entry* find_supt_entry(struct vm_sup_page_table* table,
   struct hash_elem *h = hash_find(&table->page_map, &tmp.hash_elem);
   if (h == NULL)
     return NULL;
-  struct vm_sup_page_table_entry *entry = hash_entry(h, struct vm_sup_page_table_entry, hash_elem);
-  return entry;
+  return hash_entry(h, struct vm_sup_page_table_entry, hash_elem);
 }

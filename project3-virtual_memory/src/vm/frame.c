@@ -26,7 +26,6 @@ static struct vm_frame_entry* next_frame() {
 
 static struct vm_frame_entry* clock_eviction() {
     int n = list_size(&all_frames);
-    // printf("lists %d\n", n);
     int i;
     for (i = 0; i <= (n << 1); ++i) {
         struct vm_frame_entry* frame = next_frame();
@@ -57,12 +56,14 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     void* frame_page = palloc_get_page(PAL_USER | flag);
     if (!frame_page) {
         struct vm_frame_entry* entry = clock_eviction();
+        //printf("clock eviction %x %x %s\n", entry->u_addr, entry->p_addr, entry->t->name);
         // 标记此页面为不可用
         pagedir_clear_page(entry->t->pagedir, entry->u_addr);
         // 把此页面放到交换分区
         int swap_index = swap_out(entry->p_addr);
-        vm_alloc_page_from_swap(thread_current()->spt, u_addr, swap_index);
-        vm_frame_release(entry->p_addr, true);
+        //printf("swap index: %d\n", swap_index);
+        set_entry_swap(entry->t->spt, entry->u_addr, swap_index);
+        vm_frame_release_without_lock(entry->p_addr, true);
         frame_page = palloc_get_page(PAL_USER | flag);
     }
     struct vm_frame_entry* entry = (struct vm_frame_entry*) malloc(sizeof(struct vm_frame_entry));
@@ -73,18 +74,23 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     list_push_back(&all_frames, &entry->list_element);
     hash_insert(&frame_map, &entry->hash_element);
     lock_release(&lock);
+    //printf("alloc frame %x %x\n", u_addr, frame_page);
     return frame_page;
 }
 
-// flag是true的话连物理内存一起删除
-void vm_frame_release(void* p_addr, bool flag) {
-    lock_acquire(&lock);
+void vm_frame_release_without_lock(void* p_addr, bool flag) {
     struct vm_frame_entry* entry = find_entry(p_addr);
     hash_delete(&frame_map, &entry->hash_element);
     list_remove(&entry->list_element);
     if (flag)
         palloc_free_page(p_addr);
-    lock_release(&lock);
+}
+
+// flag是true的话连物理内存一起删除
+void vm_frame_release(void* p_addr, bool flag) {
+    lock_acquire(&lock);
+    vm_frame_release_without_lock(p_addr, flag);
+    lock_acquire(&lock);
 }
 
 void vm_frame_pin(void* p_addr) {

@@ -36,7 +36,7 @@ struct vm_sup_page_table* vm_create_supt();
 // 创建一个扩展页表条目
 bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file, int offset, int read_bytes, int zero_bytes, bool writeable);
 bool vm_alloc_page_from_zeros(struct vm_sup_page_table* table, void* u_addr);
-bool vm_alloc_page_from_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index);
+bool set_entry_swap(struct vm_sup_page_table *table, void* u_addr, int swap_index);
 bool vm_alloc_page_on_frame(struct vm_sup_page_table* table, void* u_addr, void* p_addr);
 
 // 请求调页函数
