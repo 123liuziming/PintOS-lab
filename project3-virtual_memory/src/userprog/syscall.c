@@ -10,6 +10,7 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "threads/init.h"
+#include "vm/frame.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -22,6 +23,34 @@ struct file
 
 // syn-write
 struct lock filesys_lock;
+
+
+#ifdef VM
+// 把页面pin住,防止在读写系统调用的时候发生中断
+void pre_pin_pages(void* buffer, int size) {
+	void* st;
+	struct thread* t = thread_current();
+	void* pagedir = t->pagedir;
+	struct vm_sup_page_table * table = t->spt;
+	for (st = pg_round_down(buffer); st < buffer + size; st += PGSIZE) {
+		vm_get_page(pagedir, st, table);
+		void* p_addr = find_supt_entry(table, st)->p_addr;
+		vm_frame_pin(p_addr);
+	}
+}
+
+void pre_unpin_pages(void* buffer, int size) {
+	void* st;
+	struct thread* t = thread_current();
+	void* pagedir = t->pagedir;
+	struct vm_sup_page_table * table = t->spt;
+	for (st = pg_round_down(buffer); st < buffer + size; st += PGSIZE) {
+		void* p_addr = find_supt_entry(table, st)->p_addr;
+		vm_frame_unpin(p_addr);
+	}
+}
+#endif
+
 
 static bool check_fd(int fd) {
 	return fd >= 0 && fd < 128;
@@ -94,7 +123,13 @@ static int syscall_write(int fd, const void* buffer, unsigned size) {
 		if (check_fd(fd)) {
 			struct file* f = thread_current() -> files_map[fd];
 			if (f) {
+			#ifdef VM
+				pre_pin_pages(buffer, size);
+			#endif
 				res = file_write(f, buffer, size);
+			#ifdef VM
+				pre_unpin_pages(buffer, size);
+			#endif
 			}
 		}
 	}
@@ -124,8 +159,15 @@ static int syscall_read(int fd, void* buffer, unsigned size) {
 	} else {
 		if (check_fd(fd)) {
 			struct file* f = thread_current() -> files_map[fd];
-			if (f) 
+			if (f) {
+			#ifdef VM
+				pre_pin_pages(buffer, size);
+			#endif
 				res = file_read(f, buffer, size);
+			#ifdef VM
+				pre_unpin_pages(buffer, size);
+			#endif
+			}
 		}
 	}
 	lock_release(&filesys_lock);
