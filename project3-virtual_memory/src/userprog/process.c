@@ -178,6 +178,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   printf("%s: exit(%d)\n",cur->name, pid_hash_map[cur->tid]->exit_code);
   sema_up(thread_current() -> parent_sema);
+  #ifdef VM
+  vm_spt_destroy();
+  #endif
   uint32_t *pd;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

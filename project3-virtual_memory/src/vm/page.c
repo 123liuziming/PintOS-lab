@@ -8,6 +8,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+void vm_spt_destroy_entry(struct hash_elem *elem) {
+  // 有可能这一页内存此时on_frame或者在交换分区的,都要释放掉
+  // 不然时钟算法替换的页面会有问题
+  // 如果在交换分区的话会一直占用交换分区的资源
+  struct vm_sup_page_table_entry *entry = hash_entry(elem, struct vm_sup_page_table_entry, hash_elem);
+  if (entry->status == ON_FRAME) {
+    vm_frame_release(entry->p_addr, false);
+  } else if (entry->status == FROM_SWAP) {
+    swap_free(entry->swap_index);
+  }
+  free(entry);
+}
+
+void vm_spt_destroy() {
+  struct vm_sup_page_table* table = thread_current()->spt;
+  hash_destroy(table, vm_spt_destroy_entry);
+  free(table);
+}
+
 bool vm_alloc_page_from_filesys(struct vm_sup_page_table *table, void *u_addr, struct file *file, int offset, int read_bytes, int zero_bytes, bool writeable) {
   struct vm_sup_page_table_entry *entry = (struct vm_sup_page_table_entry *)malloc(sizeof(struct vm_sup_page_table_entry));
   entry->u_addr = u_addr;
@@ -38,7 +57,6 @@ bool set_entry_swap(struct vm_sup_page_table *table, void* u_addr, int swap_inde
   entry->status = FROM_SWAP;
   entry->p_addr = NULL;
   entry->swap_index = swap_index;
-  // hash_replace(&table->page_map, &entry->hash_elem);
   return true;
 }
 
@@ -59,7 +77,6 @@ bool vm_get_page(void* pagedir, void* u_addr, struct vm_sup_page_table* table) {
   if (entry == NULL) 
     return false;
   if (entry->status == ON_FRAME) {
-    printf("it is on frame\n");
     return true;
   }
   void* p_addr = vm_frame_alloc(u_addr, PAL_USER);

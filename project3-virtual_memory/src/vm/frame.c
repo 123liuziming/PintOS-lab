@@ -12,6 +12,8 @@ struct vm_frame_entry* find_entry(void* p_addr) {
     struct vm_frame_entry tmp;
     tmp.p_addr = p_addr;
     struct hash_elem* h = hash_find(&frame_map, &tmp.hash_element);
+    if (!h)
+        return NULL;
     struct vm_frame_entry* entry = hash_entry(h, struct vm_frame_entry, hash_element);
     return entry;
 }
@@ -74,7 +76,7 @@ void* vm_frame_alloc(void* u_addr, enum palloc_flags flag) {
     list_push_back(&all_frames, &entry->list_element);
     hash_insert(&frame_map, &entry->hash_element);
     lock_release(&lock);
-    //printf("alloc frame %x %x\n", u_addr, frame_page);
+    //printf("alloc frame %x %x %s\n", u_addr, frame_page, thread_name());
     return frame_page;
 }
 
@@ -90,7 +92,7 @@ void vm_frame_release_without_lock(void* p_addr, bool flag) {
 void vm_frame_release(void* p_addr, bool flag) {
     lock_acquire(&lock);
     vm_frame_release_without_lock(p_addr, flag);
-    lock_acquire(&lock);
+    lock_release(&lock);
 }
 
 void vm_frame_pin(void* p_addr) {
