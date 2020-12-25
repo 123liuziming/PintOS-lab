@@ -1,3 +1,4 @@
+#include <string.h>
 #include "page.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"

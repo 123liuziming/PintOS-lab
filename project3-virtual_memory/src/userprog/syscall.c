@@ -34,10 +34,10 @@ void pre_pin_pages(void* buffer, int size) {
 	struct vm_sup_page_table * table = t->spt;
 	for (st = pg_round_down(buffer); st < buffer + size; st += PGSIZE) {
 		vm_get_page(pagedir, st, table);
-		void* p_addr = find_supt_entry(table, st)->p_addr;
-		if (!p_addr)
+		struct vm_sup_page_table_entry* entry = find_supt_entry(table, st);
+		if (!entry)
 			continue;
-		vm_frame_pin(p_addr);
+		vm_frame_pin(entry->p_addr);
 	}
 }
 
@@ -47,10 +47,10 @@ void pre_unpin_pages(void* buffer, int size) {
 	void* pagedir = t->pagedir;
 	struct vm_sup_page_table * table = t->spt;
 	for (st = pg_round_down(buffer); st < buffer + size; st += PGSIZE) {
-		void* p_addr = find_supt_entry(table, st)->p_addr;
-		if (!p_addr)
+		struct vm_sup_page_table_entry* entry = find_supt_entry(table, st);
+		if (!entry)
 			continue;
-		vm_frame_unpin(p_addr);
+		vm_frame_pin(entry->p_addr);;
 	}
 }
 #endif

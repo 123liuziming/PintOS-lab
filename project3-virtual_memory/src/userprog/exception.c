@@ -174,6 +174,7 @@ page_fault (struct intr_frame *f)
      bool is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
      if (is_stack_access && is_stack_addr) {
         if (!find_supt_entry(cur->spt, fault_page)) {
+           //printf("stack growth\n");
            vm_alloc_page_from_zeros(cur->spt, fault_page);
          }
       }
