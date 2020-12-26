@@ -258,6 +258,60 @@ static bool syscall_remove(const char *file) {
   	return res;
 }
 
+#ifdef VM
+int syscall_mmap(int fd, void* addr) {
+	if (!addr || pg_ofs(addr) != 0) {
+		goto MMAP_FAIL;
+	}
+	if (!check_fd(fd)) {
+		goto MMAP_FAIL;
+	}
+	struct thread* t = thread_current();
+	struct file* f = t->files_map[fd];
+	if (!f) {
+		goto MMAP_FAIL;
+	}
+	lock_acquire(&filesys_lock);
+	struct file* f_reopen = file_reopen(f);
+	int len = file_length(f_reopen);
+	void* st = addr;
+	struct vm_sup_page_table *table = t->spt;
+	int offset = 0;
+	for (; st < st + len; st += PGSIZE) {
+		if (find_supt_entry(t->supt, st)) {
+			goto MMAP_FAIL;
+		}
+		int read_bytes = len - offset >= PGSIZE ? PGSIZE : len - offset;
+		int zero_bytes = PGSIZE - read_bytes;
+		vm_alloc_page_from_filesys(table, st, f_reopen, offset, read_bytes, zero_bytes, true);
+		offset += PGSIZE;
+	}
+	struct mmap_desc* save = (struct mmap_desc*) malloc(sizeof(struct mmap_desc));
+	save->file = f_reopen;
+	save->u_addr = addr;
+	save->mmap_id = t->mmap_cnt;
+	t->mmap_list[(t->mmap_cnt)++] = save;
+	lock_release(&filesys_lock);
+	return t->mmap_cnt - 1;
+MMAP_FAIL:
+	lock_release(&filesys_lock);
+	return -1;
+}
+
+void syscall_munmap(int mapping) {
+	// 要解绑的对象
+	struct thread* t = thread_current();
+	struct mmap_desc* target = t->mmap_list[mapping];
+	int len = file_length(target->file);
+	int offset = 0;
+	void* st = entry->addr;
+
+MUMNAP_FAIL:
+	lock_release(&filesys_lock);
+}
+
+#endif
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {

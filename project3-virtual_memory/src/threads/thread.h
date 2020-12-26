@@ -89,6 +89,13 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+#ifdef VM
+struct mmap_desc {
+   int mmap_id;
+   struct file* file;
+   void* u_addr;
+};
+#endif
 struct thread
   {
     /* Owned by thread.c. */
@@ -117,6 +124,8 @@ struct thread
     struct vm_sup_page_table* spt;
     // 保存的esp
     uint8_t* origin_stack;
+    struct mmap_desc* mmap_list[OPEN_MAX];
+    int mmap_cnt;
 #endif
 
     /* Owned by thread.c. */
