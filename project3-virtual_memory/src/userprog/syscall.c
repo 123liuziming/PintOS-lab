@@ -455,6 +455,24 @@ syscall_handler (struct intr_frame *f UNUSED)
 			f->eax = syscall_remove(file);
 			break;
 		}
+	#ifdef VM
+		case SYS_MMAP: {
+			int fd;
+			void* addr;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			read_from_user(p + 2, &addr, sizeof(addr));
+			check_memory(addr);
+			f->eax = syscall_mmap(fd, addr);
+			break;
+		}
+
+		case SYS_MUNMAP: {
+			int mid;
+			read_from_user(p + 1, &mid, sizeof(mid));
+			syscall_munmap(mid);
+			break;
+		}
+	#endif
 
 		default:
 			printf("%d\n", system_call);
