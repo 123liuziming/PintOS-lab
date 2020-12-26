@@ -11,6 +11,7 @@
 #include "userprog/process.h"
 #include "threads/init.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -278,7 +279,7 @@ int syscall_mmap(int fd, void* addr) {
 	struct vm_sup_page_table *table = t->spt;
 	int offset = 0;
 	for (; st < st + len; st += PGSIZE) {
-		if (find_supt_entry(t->supt, st)) {
+		if (find_supt_entry(t->spt, st)) {
 			goto MMAP_FAIL;
 		}
 		int read_bytes = len - offset >= PGSIZE ? PGSIZE : len - offset;
@@ -302,9 +303,41 @@ void syscall_munmap(int mapping) {
 	// 要解绑的对象
 	struct thread* t = thread_current();
 	struct mmap_desc* target = t->mmap_list[mapping];
-	int len = file_length(target->file);
+	if (!target)
+		return;
+	struct file* f = target->file;
+	void* pagedir = t->pagedir;
+	int len = file_length(f);
 	int offset = 0;
-	void* st = entry->addr;
+	void* st = target->u_addr;
+	lock_acquire(&filesys_lock);
+	// 1. 获取此页表条目
+	for (; st < st + len; st += PGSIZE) {
+		struct vm_sup_page_table_entry* entry = find_supt_entry(t->spt, st);
+		switch (entry->status) {
+			case ON_FRAME: {
+				// 写文件
+				int write_bytes = offset + PGSIZE < len ? PGSIZE : len - offset;
+				file_write_at(f, st, write_bytes, offset);
+				vm_frame_release(entry->p_addr, true);
+				pagedir_clear_page(pagedir, st);
+				break;
+			}
+			case FROM_SWAP: {
+				void* tmp_page = palloc_get_page(0);
+				// 写到临时页后写入文件
+				swap_in(entry->swap_index, tmp_page);
+				file_write_at(f, st, PGSIZE, offset);
+				break;
+			}
+		}
+		hash_delete(&t->spt->page_map, &entry->hash_elem);
+		file_close(f);
+		free(target);
+		offset += PGSIZE;
+	}
+	// 删除此mmap描述符
+	t->mmap_list[mapping] = NULL;
 
 MUMNAP_FAIL:
 	lock_release(&filesys_lock);
