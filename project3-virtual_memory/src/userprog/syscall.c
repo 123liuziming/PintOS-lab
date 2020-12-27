@@ -12,6 +12,7 @@
 #include "threads/init.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -310,6 +311,7 @@ void syscall_munmap(int mapping) {
 	struct file* f = target->file;
 	void* pagedir = t->pagedir;
 	int len = file_length(f);
+	//printf("file size: %d\n", len);
 	int offset = 0;
 	void* st = target->u_addr;
 	void* end = st + len;
@@ -320,7 +322,9 @@ void syscall_munmap(int mapping) {
 			case ON_FRAME: {
 				// 写文件
 				int write_bytes = offset + PGSIZE < len ? PGSIZE : len - offset;
-				file_write_at(f, st, write_bytes, offset);
+				if (pagedir_is_dirty(t->pagedir, st)) {
+					file_write_at(f, st, write_bytes, offset);
+				}
 				vm_frame_release(entry->p_addr, true);
 				pagedir_clear_page(pagedir, st);
 				break;
@@ -329,7 +333,9 @@ void syscall_munmap(int mapping) {
 				void* tmp_page = palloc_get_page(0);
 				// 写到临时页后写入文件
 				swap_in(entry->swap_index, tmp_page);
-				file_write_at(f, st, PGSIZE, offset);
+				if (pagedir_is_dirty(t->pagedir, st)) {
+					file_write_at(f, st, PGSIZE, offset);
+				}
 				break;
 			}
 		}

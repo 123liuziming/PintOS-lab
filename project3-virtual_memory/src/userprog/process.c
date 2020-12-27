@@ -28,6 +28,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+bool is_runtime = false;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -56,7 +58,7 @@ tid_t
   sema_down(pid_hash_map[tid]->parent_sema);
   if (pid_hash_map[tid]->exit_code == EXIT_CODE_ERROR) {
     pid_hash_map[tid] = NULL;
-    return -1;
+    return is_runtime ? tid : -1;
   }
   
   if (tid == TID_ERROR)
@@ -69,6 +71,7 @@ tid_t
 static void
 start_process (void *file_name_)
 {
+  is_runtime = false;
   char* full_str;
   char* file_name;
   char* name_str;
@@ -141,6 +144,7 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   palloc_free_page (file_name_);
+  is_runtime = true;
   //hex_dump(if_.esp, if_.esp, PHYS_BASE - (if_.esp), true);
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
@@ -162,7 +166,7 @@ process_wait (tid_t child_tid UNUSED)
     return -1;
   }
   
-  //("waiting for %d\n", child_tid);
+  //printf("waiting for %d\n", child_tid);
   struct thread* child = pid_hash_map[child_tid];
   if (child == NULL) 
     return EXIT_CODE_ERROR;
@@ -177,7 +181,6 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   printf("%s: exit(%d)\n",cur->name, pid_hash_map[cur->tid]->exit_code);
-  sema_up(thread_current() -> parent_sema);
   #ifdef VM
   int i;
   for (i = 0; i < cur->mmap_cnt; ++i) {
@@ -188,6 +191,7 @@ process_exit (void)
   }
   vm_spt_destroy();
   #endif
+  sema_up(thread_current() -> parent_sema);
   uint32_t *pd;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
