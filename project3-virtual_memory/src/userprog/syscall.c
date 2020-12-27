@@ -261,6 +261,7 @@ static bool syscall_remove(const char *file) {
 
 #ifdef VM
 int syscall_mmap(int fd, void* addr) {
+	lock_acquire(&filesys_lock);
 	if (!addr || pg_ofs(addr) != 0) {
 		goto MMAP_FAIL;
 	}
@@ -272,13 +273,13 @@ int syscall_mmap(int fd, void* addr) {
 	if (!f) {
 		goto MMAP_FAIL;
 	}
-	lock_acquire(&filesys_lock);
 	struct file* f_reopen = file_reopen(f);
 	int len = file_length(f_reopen);
 	void* st = addr;
 	struct vm_sup_page_table *table = t->spt;
 	int offset = 0;
-	for (; st < st + len; st += PGSIZE) {
+	void* end = st + len;
+	for (; st < end; st += PGSIZE) {
 		if (find_supt_entry(t->spt, st)) {
 			goto MMAP_FAIL;
 		}
@@ -305,14 +306,15 @@ void syscall_munmap(int mapping) {
 	struct mmap_desc* target = t->mmap_list[mapping];
 	if (!target)
 		return;
+	lock_acquire(&filesys_lock);
 	struct file* f = target->file;
 	void* pagedir = t->pagedir;
 	int len = file_length(f);
 	int offset = 0;
 	void* st = target->u_addr;
-	lock_acquire(&filesys_lock);
+	void* end = st + len;
 	// 1. 获取此页表条目
-	for (; st < st + len; st += PGSIZE) {
+	for (; st < end; st += PGSIZE) {
 		struct vm_sup_page_table_entry* entry = find_supt_entry(t->spt, st);
 		switch (entry->status) {
 			case ON_FRAME: {
@@ -332,14 +334,12 @@ void syscall_munmap(int mapping) {
 			}
 		}
 		hash_delete(&t->spt->page_map, &entry->hash_elem);
-		file_close(f);
-		free(target);
 		offset += PGSIZE;
 	}
+	file_close(f);
+	free(target);
 	// 删除此mmap描述符
 	t->mmap_list[mapping] = NULL;
-
-MUMNAP_FAIL:
 	lock_release(&filesys_lock);
 }
 
@@ -461,7 +461,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			void* addr;
 			read_from_user(p + 1, &fd, sizeof(fd));
 			read_from_user(p + 2, &addr, sizeof(addr));
-			check_memory(addr);
 			f->eax = syscall_mmap(fd, addr);
 			break;
 		}

@@ -179,6 +179,13 @@ process_exit (void)
   printf("%s: exit(%d)\n",cur->name, pid_hash_map[cur->tid]->exit_code);
   sema_up(thread_current() -> parent_sema);
   #ifdef VM
+  int i;
+  for (i = 0; i < cur->mmap_cnt; ++i) {
+    struct mmap_desc* desc = cur->mmap_list[i];
+    if (desc) {
+      syscall_munmap(desc->mmap_id);
+    }
+  }
   vm_spt_destroy();
   #endif
   uint32_t *pd;

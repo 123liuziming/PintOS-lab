@@ -22,9 +22,7 @@ main (int argc UNUSED, char *argv[])
   quiet = true;
 
   CHECK ((handle = open (argv[1])) > 1, "open \"%s\"", argv[1]);
-  printf("what the fuck\n");
   size = read (handle, buf, sizeof buf);
-  printf("what the fuck\n");
   qsort_bytes (buf, sizeof buf);
   seek (handle, 0);
   write (handle, buf, size);
