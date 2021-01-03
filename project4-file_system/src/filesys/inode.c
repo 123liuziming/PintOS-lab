@@ -10,11 +10,20 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+#define DIRECT_BLOCK_COUNT 128
+#define INDIRECT_BLOCK_PER_SECTOR 128
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
+    //block_sector_t start;               /* First data sector. */
+    // 类似于linux 0.11 直接映射
+    block_sector_t direct_blocks[DIRECT_BLOCK_COUNT];
+    // 一级间接映射
+    block_sector_t indirect_blocks;
+    // 二级间接映射
+    block_sector_t doubly_indirect_blocks;
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
     uint32_t unused[125];               /* Not used. */
@@ -38,6 +47,36 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
   };
+
+// 将返回的在文件中的sector号转化为实际的盘块号
+static block_sector_t index_to_sector(const struct inode_disk* inode, off_t index) {
+  // 直接映射块,那么直接返回
+  if (index < DIRECT_BLOCK_COUNT) {
+    return inode->direct_blocks[index];
+  }
+  // 一级间接映射
+  index -= DIRECT_BLOCK_COUNT;
+  if (index < INDIRECT_BLOCK_PER_SECTOR) {
+    uint8_t* buffer;
+    block_read(fs_device, inode->indirect_blocks, buffer);
+    return *(buffer + index);
+  }
+  // 二级间接映射
+  index -= INDIRECT_BLOCK_PER_SECTOR;
+  if (index < INDIRECT_BLOCK_PER_SECTOR * INDIRECT_BLOCK_PER_SECTOR) {
+    uint8_t* buffer;
+    // 在第一级时一个index代表128个sector
+    int m = index / INDIRECT_BLOCK_PER_SECTOR;
+    int n = index % INDIRECT_BLOCK_PER_SECTOR;
+    // 读第一级,取第m个
+    block_read(fs_device, inode->doubly_indirect_blocks, buffer);
+    block_read(fs_device, *(buffer + m), buffer);
+    return *(buffer + n);
+  }
+  // 文件太大了,没法搞
+  return -1;
+}
+
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
