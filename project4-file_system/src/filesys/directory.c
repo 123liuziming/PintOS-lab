@@ -21,6 +21,29 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
+void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
+  int path_len = strlen(path);
+  char* path_cpy = (char*) malloc(path_len * sizeof(char));
+  strncpy(path_cpy, path, path_len);
+  char* dir = directory;
+  if (path_len && path[0] == '/') {
+    *(dir++) = '/';
+  }
+  char* token, save_ptr;
+  char* prev_token = "";
+  for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+    if (strlen(prev_token)) {
+      strncpy(dir, prev_token, strlen(prev_token));
+      dir += (strlen(token) + 1);
+      *dir = '/';
+    }
+    prev_token = token;
+  }
+  *dir = '/0';
+  strncpy(filename, token, strlen(token));
+  free(path_cpy);
+}
+
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
