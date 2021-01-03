@@ -21,6 +21,7 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
+// 把一个完整路径拆分成目录和文件名两块
 void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   int path_len = strlen(path);
   char* path_cpy = (char*) malloc(path_len * sizeof(char));
@@ -43,6 +44,17 @@ void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   strncpy(filename, token, strlen(token));
   free(path_cpy);
 }
+
+// 通过路径打开
+struct dir* dir_open_path(char* path) {
+  struct dir* current_dir;
+  if (path[0] == '/') {
+    current_dir = dir_open(inode_open(ROOT_DIR_SECTOR));
+  } else {
+    // 打开当前路径
+  }
+}
+
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
