@@ -1,6 +1,9 @@
 #ifndef CACHE_H
 
+#define MAX_ENTRY_NUM 64
+
 #include "devices/block.h"
+#include "threads/synch.h"
 #include <hash.h>
 #include <list.h>
 
@@ -12,10 +15,12 @@ struct cache_entry {
     bool is_dirty;
     // 用于时钟算法
     bool is_accessed;
+    uint8_t buffer[BLOCK_SECTOR_SIZE];
 };
 
 struct hash cache_map;
 struct list cache_list;
+struct lock cache_lock;
 
 void cache_init();
 void cache_read(block_sector_t block, void* addr);
