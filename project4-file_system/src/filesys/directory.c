@@ -45,6 +45,10 @@ void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   free(path_cpy);
 }
 
+struct inode* find_dir_by_name(struct dir* dir, char* name) {
+
+}
+
 // 通过路径打开
 struct dir* dir_open_path(char* path) {
   struct dir* current_dir;
@@ -53,6 +57,25 @@ struct dir* dir_open_path(char* path) {
   } else {
     // 打开当前路径
   }
+
+  char* token, save_ptr;
+  for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+    // 找inode
+    struct inode* tmp = find_dir_by_name(current_dir, token);
+    if (!tmp) {
+      dir_close(current_dir);
+      return NULL;
+    }
+    struct dir* now = dir_open(tmp);
+    if (!now) {
+      dir_close(current_dir);
+      return NULL;
+    }
+    dir_close(current_dir);
+    current_dir = now;
+  }
+
+  return current_dir;
 }
 
 
