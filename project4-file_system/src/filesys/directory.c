@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -45,10 +46,6 @@ void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   free(path_cpy);
 }
 
-struct inode* find_dir_by_name(struct dir* dir, char* name) {
-
-}
-
 // 通过路径打开
 struct dir* dir_open_path(char* path) {
   struct dir* current_dir;
@@ -56,12 +53,14 @@ struct dir* dir_open_path(char* path) {
     current_dir = dir_open(inode_open(ROOT_DIR_SECTOR));
   } else {
     // 打开当前路径
+    current_dir = thread_current()->cwd;
   }
 
   char* token, save_ptr;
   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
     // 找inode
-    struct inode* tmp = find_dir_by_name(current_dir, token);
+    struct inode* tmp;
+    bool flag = dir_lookup(current_dir, token, &tmp);
     if (!tmp) {
       dir_close(current_dir);
       return NULL;
@@ -182,6 +181,15 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  if (strcmp(name, ".") == 0) {
+    return inode_reopen(dir->inode);
+  }
+  if (strcmp(name, "..") == 0) {
+    // 父目录是第一个目录项
+    inode_read_at(dir->inode, &e, sizeof(e), 0);
+    return dir_open(inode_open(e.inode_sector));
+  }
+
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
@@ -197,7 +205,7 @@ dir_lookup (const struct dir *dir, const char *name,
    Fails if NAME is invalid (i.e. too long) or a disk or memory
    error occurs. */
 bool
-dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
+dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is_dir)
 {
   struct dir_entry e;
   off_t ofs;
@@ -213,6 +221,23 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
+  
+  if (is_dir) {
+    // 新加一个页目录项,放在子目录的第一项，代表父目录项..
+    struct inode* child_inode = inode_open(inode_sector);
+    if (!child_inode) {
+      inode_close(child_inode);
+      return false;
+    }
+    e.inode_sector = inode_get_inumber(dir->inode);
+    e.in_use = true;
+    strlcpy(e.name, "..", 2 * sizeof(char));
+    if (!inode_write_at(child_inode, &e, sizeof(e), 0)) {
+      inode_close(child_inode);
+      return false;
+    }
+    inode_close(child_inode);
+  }
 
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the

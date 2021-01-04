@@ -112,7 +112,7 @@ struct thread
     int exec_file_fd;
     char* exec_file_name;
 #endif
-
+    struct dir* cwd;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
