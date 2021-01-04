@@ -10,7 +10,8 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define DIRECT_BLOCK_COUNT 128
+// 要保证一个inode_disk正好是一个扇区大小,即对齐后512字节
+#define DIRECT_BLOCK_COUNT 123
 #define INDIRECT_BLOCK_PER_SECTOR 128
 
 /* On-disk inode.

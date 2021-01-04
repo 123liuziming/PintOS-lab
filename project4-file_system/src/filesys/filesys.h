@@ -16,5 +16,11 @@ void filesys_done (void);
 bool filesys_create (const char *name, off_t initial_size);
 struct file *filesys_open (const char *name);
 bool filesys_remove (const char *name);
-
+bool inode_is_directory (const struct inode *);
+bool inode_is_removed (const struct inode *);
+off_t inode_read_at (struct inode *, void *, off_t size, off_t offset);
+off_t inode_write_at (struct inode *, const void *, off_t size, off_t offset);
+void inode_deny_write (struct inode *);
+void inode_allow_write (struct inode *);
+off_t inode_length (const struct inode *)
 #endif /* filesys/filesys.h */

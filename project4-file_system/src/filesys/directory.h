@@ -26,5 +26,7 @@ bool dir_lookup (const struct dir *, const char *name, struct inode **);
 bool dir_add (struct dir *, const char *name, block_sector_t);
 bool dir_remove (struct dir *, const char *name);
 bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
+void get_dir_and_filename_by_path(char* path, char* filename, char* directory);
+struct dir* dir_open_path(char* path);
 
 #endif /* filesys/directory.h */
