@@ -124,6 +124,7 @@ static bool indirect_inode_alloc(struct inode_disk* node, int sector_num, int le
   int l = MIN(sector_num, BLOCK_SECTOR_SIZE);
   int sectors[BLOCK_SECTOR_SIZE];
   int doubly_sectors[BLOCK_SECTOR_SIZE];
+  memset(doubly_sectors, 0, sizeof(doubly_sectors));
   for (m = 0; m < doubly_mapping; ++m) {
     int double_tmp;
     if (level == 2 && !free_map_allocate(1, &double_tmp)) {
@@ -137,6 +138,8 @@ static bool indirect_inode_alloc(struct inode_disk* node, int sector_num, int le
       }
       sectors[i] = tmp;
     }
+    sector_num -= l;
+    l = MIN(sector_num, BLOCK_SECTOR_SIZE);
     if (level == 1) {
       cache_write(node->indirect_blocks, sectors);
     } 
