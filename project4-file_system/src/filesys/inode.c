@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "filesys/cache.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -13,6 +14,8 @@
 // 要保证一个inode_disk正好是一个扇区大小,即对齐后512字节
 #define DIRECT_BLOCK_COUNT 123
 #define INDIRECT_BLOCK_PER_SECTOR 128
+
+#define MIN(a, b) a < b ? a : b
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -86,11 +89,15 @@ static block_sector_t index_to_sector(const struct inode_disk* inode, off_t inde
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
+  // 从之前的顺序存储改为现在的索引存储
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
+  if (pos < inode->data.length) {
+    int index = pos / BLOCK_SECTOR_SIZE;
+    return index_to_sector(&inode->data, index);
+  }
+  else {
     return -1;
+  }
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -103,6 +110,87 @@ inode_init (void)
 {
   list_init (&open_inodes);
 }
+
+static bool indirect_inode_alloc(struct inode_disk* node, int sector_num, int level) {
+  // 一级间接映射
+  int doubly_mapping = level == 1 ? 1 : DIV_ROUND_UP(sector_num, BLOCK_SECTOR_SIZE);
+  if (level == 1 && !free_map_allocate(1, &node->indirect_blocks)) {
+    return false;
+  }
+  if (level == 2 && !free_map_allocate(1, &node->doubly_indirect_blocks)) {
+    return false;
+  }
+  int i = 0, m;
+  int l = MIN(sector_num, BLOCK_SECTOR_SIZE);
+  int sectors[BLOCK_SECTOR_SIZE];
+  int doubly_sectors[BLOCK_SECTOR_SIZE];
+  for (m = 0; m < doubly_mapping; ++m) {
+    int double_tmp;
+    if (level == 2 && !free_map_allocate(1, &double_tmp)) {
+      return false;
+    }
+    memset(sectors, 0, sizeof(sectors));
+    for (; i < l; ++i) {
+      int tmp;
+      if (!free_map_allocate(1, &tmp)) {
+        return false;
+      }
+      sectors[i] = tmp;
+    }
+    if (level == 1) {
+      cache_write(node->indirect_blocks, sectors);
+    } 
+    else if (level == 2) {
+      doubly_sectors[m] = double_tmp;
+      cache_write(double_tmp, sectors);
+    }
+  }
+  if (level == 2) {
+    cache_write(node->doubly_indirect_blocks, doubly_sectors);
+  }
+  return true;
+}
+
+// 在磁盘上申请一个inode
+static bool inode_alloc(struct inode_disk* node) {
+  int len = node->length;
+  char* zeros = (char*) malloc(BLOCK_SECTOR_SIZE * sizeof(char)); 
+  // 一级映射,直接申请对应块就可以
+  int sector_num = DIV_ROUND_UP(len, BLOCK_SECTOR_SIZE);
+  int l = MIN(sector_num, DIRECT_BLOCK_COUNT);
+  
+  int i = 0;
+  for (; i < l; ++i) {
+    if (!free_map_allocate(1, &node->direct_blocks[i])) {
+      return false;
+    }
+    // 申请到了inode
+    cache_write(node->direct_blocks[i], zeros);
+  }
+  sector_num -= l;
+  if (sector_num == 0) {
+    return true;
+  }
+
+  l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
+  if (!indirect_inode_alloc(node, sector_num, 1)) {
+    return false;
+  }
+
+  sector_num -= l;
+  if (sector_num == 0) {
+    return true;
+  }
+
+  l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR * INDIRECT_BLOCK_PER_SECTOR);
+  if (!indirect_inode_alloc(node, sector_num, 2)) {
+    return false;
+  }
+
+  return sector_num == l;
+
+}
+
 
 /* Initializes an inode with LENGTH bytes of data and
    writes the new inode to sector SECTOR on the file system
