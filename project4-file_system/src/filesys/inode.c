@@ -16,6 +16,8 @@
 #define INDIRECT_BLOCK_PER_SECTOR 128
 
 #define MIN(a, b) a < b ? a : b
+#define block_write(a, b, c) cache_write(b, c)
+#define block_read(a, b, c) cache_read(b, c)
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -111,45 +113,41 @@ inode_init (void)
   list_init (&open_inodes);
 }
 
-static bool indirect_inode_alloc(struct inode_disk* node, int sector_num, int level) {
-  // 一级间接映射
-  int doubly_mapping = level == 1 ? 1 : DIV_ROUND_UP(sector_num, BLOCK_SECTOR_SIZE);
-  if (level == 1 && !free_map_allocate(1, &node->indirect_blocks)) {
-    return false;
-  }
-  if (level == 2 && !free_map_allocate(1, &node->doubly_indirect_blocks)) {
-    return false;
-  }
-  int i = 0, m;
-  int l = MIN(sector_num, BLOCK_SECTOR_SIZE);
-  int sectors[BLOCK_SECTOR_SIZE];
-  int doubly_sectors[BLOCK_SECTOR_SIZE];
-  memset(doubly_sectors, 0, sizeof(doubly_sectors));
-  for (m = 0; m < doubly_mapping; ++m) {
-    int double_tmp;
-    if (level == 2 && !free_map_allocate(1, &double_tmp)) {
+static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int level) {
+  block_sector_t zeros[INDIRECT_BLOCK_PER_SECTOR];
+  memset(zeros, 0, sizeof(zeros));
+  if (level == 1) {
+    if (!free_map_allocate(1, block)) {
       return false;
     }
+    int l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
+    int i;
+    block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
     memset(sectors, 0, sizeof(sectors));
-    for (; i < l; ++i) {
-      int tmp;
-      if (!free_map_allocate(1, &tmp)) {
+    for (i = 0; i < l; ++i) {
+      if (!free_map_allocate(1, &sectors[i])) {
         return false;
       }
-      sectors[i] = tmp;
+      cache_write(sectors[i], zeros);
     }
-    sector_num -= l;
-    l = MIN(sector_num, BLOCK_SECTOR_SIZE);
-    if (level == 1) {
-      cache_write(node->indirect_blocks, sectors);
-    } 
-    else if (level == 2) {
-      doubly_sectors[m] = double_tmp;
-      cache_write(double_tmp, sectors);
-    }
+    cache_write(block, sectors);
   }
-  if (level == 2) {
-    cache_write(node->doubly_indirect_blocks, doubly_sectors);
+  else if (level == 2) {
+    if (!free_map_allocate(1, block)) {
+      return false;
+    }
+    int l = MIN(DIV_ROUND_UP(sector_num, INDIRECT_BLOCK_PER_SECTOR), INDIRECT_BLOCK_PER_SECTOR);
+    int i;
+    block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
+    memset(sectors, 0, sizeof(sectors));
+    for (i = 0; i < l; ++i) {
+      int tmp = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
+      if (!indirect_inode_alloc(&sectors[i], tmp, 1)) {
+        return false;
+      }
+      sector_num -= tmp;
+    }
+    ASSERT(sector_num == 0)
   }
   return true;
 }
@@ -176,7 +174,7 @@ static bool inode_alloc(struct inode_disk* node) {
   }
 
   l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
-  if (!indirect_inode_alloc(node, sector_num, 1)) {
+  if (!indirect_inode_alloc(&node->indirect_blocks, sector_num, 1)) {
     return false;
   }
 
@@ -186,11 +184,16 @@ static bool inode_alloc(struct inode_disk* node) {
   }
 
   l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR * INDIRECT_BLOCK_PER_SECTOR);
-  if (!indirect_inode_alloc(node, sector_num, 2)) {
+  if (!indirect_inode_alloc(&node->doubly_indirect_blocks, sector_num, 2)) {
     return false;
   }
 
   return sector_num == l;
+
+}
+
+// inode释放逻辑
+static bool inode_release(struct inode_disk* node) {
 
 }
 
@@ -218,17 +221,9 @@ inode_create (block_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
+      if (inode_alloc(disk_inode)) 
         {
           block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
           success = true; 
         } 
       free (disk_inode);
@@ -308,6 +303,7 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
+          // TODO:释放其余inode
           free_map_release (inode->data.start,
                             bytes_to_sectors (inode->data.length)); 
         }
@@ -395,6 +391,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   if (inode->deny_write_cnt)
     return 0;
+
+  // 写的位置超过文件末尾中间补0
 
   while (size > 0) 
     {

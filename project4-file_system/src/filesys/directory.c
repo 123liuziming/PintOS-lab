@@ -83,6 +83,7 @@ struct dir* dir_open_path(char* path) {
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
+  // TODO:创建目录时添加一项(父目录)
   return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
 }
 
@@ -283,6 +284,9 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+  
+  // TODO:不能删除非空目录
+
 
   /* Erase directory entry. */
   e.in_use = false;
