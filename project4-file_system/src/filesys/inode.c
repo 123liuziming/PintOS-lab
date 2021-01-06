@@ -115,6 +115,8 @@ inode_init (void)
 
 static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int level) {
   block_sector_t zeros[INDIRECT_BLOCK_PER_SECTOR];
+  block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
+  memset(sectors, 0, sizeof(sectors));
   memset(zeros, 0, sizeof(zeros));
   if (level == 1) {
     if (!free_map_allocate(1, block)) {
@@ -122,15 +124,12 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
     }
     int l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
     int i;
-    block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
-    memset(sectors, 0, sizeof(sectors));
     for (i = 0; i < l; ++i) {
       if (!free_map_allocate(1, &sectors[i])) {
         return false;
       }
       cache_write(sectors[i], zeros);
     }
-    cache_write(block, sectors);
   }
   else if (level == 2) {
     if (!free_map_allocate(1, block)) {
@@ -138,8 +137,6 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
     }
     int l = MIN(DIV_ROUND_UP(sector_num, INDIRECT_BLOCK_PER_SECTOR), INDIRECT_BLOCK_PER_SECTOR);
     int i;
-    block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
-    memset(sectors, 0, sizeof(sectors));
     for (i = 0; i < l; ++i) {
       int tmp = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
       if (!indirect_inode_alloc(&sectors[i], tmp, 1)) {
@@ -148,6 +145,23 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
       sector_num -= tmp;
     }
     ASSERT(sector_num == 0)
+  }
+  cache_write(block, sectors);
+  return true;
+}
+
+
+static bool indirect_inode_release(block_sector_t* block, int sector_num, int level) {
+  block_sector_t zeros[INDIRECT_BLOCK_PER_SECTOR];
+  block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
+  memset(sectors, 0, sizeof(sectors));
+  memset(zeros, 0, sizeof(zeros));
+  if (level == 1) {
+    free_map_release(block, 1);
+    
+  }
+  else if (level == 2) {
+    
   }
   return true;
 }
