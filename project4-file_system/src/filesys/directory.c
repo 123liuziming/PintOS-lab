@@ -6,6 +6,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/cache.h"
 
 /* A directory. */
 struct dir 
@@ -84,7 +85,18 @@ bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
   // TODO:创建目录时添加一项(父目录)
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  bool flag = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  if (!flag) {
+    return false;
+  }
+  struct dir* directory = dir_open(inode_open(sector));
+  struct dir_entry entry;
+  entry.inode_sector = sector;
+  strlcpy(entry.name, "..", 2 * sizeof(char));
+  if (!inode_write_at(directory->inode, &entry, sizeof(struct dir_entry), 0)) {
+    return false;
+  }
+  return true;
 }
 
 /* Opens and returns the directory for the given INODE, of which

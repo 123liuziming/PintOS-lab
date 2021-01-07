@@ -151,17 +151,31 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
 }
 
 
-static bool indirect_inode_release(block_sector_t* block, int sector_num, int level) {
+static bool indirect_inode_release(block_sector_t block, int sector_num, int level) {
   block_sector_t zeros[INDIRECT_BLOCK_PER_SECTOR];
   block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
   memset(sectors, 0, sizeof(sectors));
   memset(zeros, 0, sizeof(zeros));
   if (level == 1) {
+    // 读入一级映射对应的所有盘块号
+    cache_read(block, sectors);
+    int i;
+    for (i = 0; i < INDIRECT_BLOCK_PER_SECTOR; ++i) {
+        free_map_release(sectors[i], 1);
+    }
     free_map_release(block, 1);
-    
   }
   else if (level == 2) {
-    
+    cache_read(block, sectors);
+    int l = MIN(DIV_ROUND_UP(sector_num, INDIRECT_BLOCK_PER_SECTOR), INDIRECT_BLOCK_PER_SECTOR);
+    int i;
+    for (i = 0; i < l; ++i) {
+      int tmp = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
+      if (!indirect_inode_release(sectors[i], tmp, 1)) {
+        return false;
+      }
+      sector_num -= tmp;
+    }
   }
   return true;
 }
@@ -203,12 +217,40 @@ static bool inode_alloc(struct inode_disk* node) {
   }
 
   return sector_num == l;
-
 }
 
 // inode释放逻辑
 static bool inode_release(struct inode_disk* node) {
+  int len = node->length;
+  int sector_num = bytes_to_sectors(len);
+  int l = MIN(sector_num, DIRECT_BLOCK_COUNT);
+  int i;
+  // 一级映射直接释放掉
+  for (i = 0; i < l; ++i) {
+    free_map_release(node->direct_blocks[i], 1);
+  }
 
+  sector_num -= l;
+  if (sector_num == 0) {
+    return true;
+  }
+
+  l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
+  if (!indirect_inode_release(node->indirect_blocks, sector_num, 1)) {
+    return false;
+  }
+
+  sector_num -= l;
+  if (sector_num == 0) {
+    return true;
+  }
+
+  l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR * INDIRECT_BLOCK_PER_SECTOR);
+  if (!indirect_inode_release(node->doubly_indirect_blocks, sector_num, 2)) {
+    return false;
+  }
+
+  return sector_num == l;
 }
 
 
@@ -317,9 +359,9 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-          // TODO:释放其余inode
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+          if (!inode_release(&inode->data)) {
+            PANIC("释放inode出错");
+          }
         }
 
       free (inode); 
