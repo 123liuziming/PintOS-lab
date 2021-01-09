@@ -7,6 +7,7 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "filesys/cache.h"
+#include "filesys/file.h"
 
 /* A directory. */
 struct dir 
@@ -322,6 +323,10 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
 
+  char directory[NAME_MAX + 1];
+  char file_name[NAME_MAX + 1];
+  get_dir_and_filename_by_path(name, file_name, directory);
+
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
@@ -333,3 +338,25 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+bool dir_chdir(const char* dir) {
+  struct dir* dir_new = dir_open_path(dir);
+  struct thread* cur = thread_current();
+  if (!dir_new) {
+    return false;
+  }
+  dir_close(cur->cwd);
+  cur->cwd = dir_new;
+  return true;
+}
+
+bool dir_isdir(int fd) {
+  struct thread* cur = thread_current();
+  struct file* f = cur->files_map[fd];
+  if (!f) {
+    return false;
+  }
+  return inode_is_directory(file_get_inode(f));
+}
+
+
