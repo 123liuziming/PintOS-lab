@@ -118,13 +118,19 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
   block_sector_t sectors[INDIRECT_BLOCK_PER_SECTOR];
   memset(sectors, 0, sizeof(sectors));
   memset(zeros, 0, sizeof(zeros));
-  if (level == 1) {
-    if (!free_map_allocate(1, block)) {
-      return false;
+  if (*block == 0) {
+      if (!free_map_allocate(1, block)) {
+        return false;
+      }
     }
+  if (level == 1) {
     int l = MIN(sector_num, INDIRECT_BLOCK_PER_SECTOR);
     int i;
+    cache_read(*block, sectors);
     for (i = 0; i < l; ++i) {
+      if (sectors[i]) {
+        continue;
+      }
       if (!free_map_allocate(1, &sectors[i])) {
         return false;
       }
@@ -132,9 +138,6 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
     }
   }
   else if (level == 2) {
-    if (!free_map_allocate(1, block)) {
-      return false;
-    }
     int l = MIN(DIV_ROUND_UP(sector_num, INDIRECT_BLOCK_PER_SECTOR), INDIRECT_BLOCK_PER_SECTOR);
     int i;
     for (i = 0; i < l; ++i) {
@@ -146,7 +149,7 @@ static bool indirect_inode_alloc(block_sector_t* block, int sector_num, int leve
     }
     ASSERT(sector_num == 0)
   }
-  cache_write(block, sectors);
+  cache_write(*block, sectors);
   return true;
 }
 
@@ -181,8 +184,7 @@ static bool indirect_inode_release(block_sector_t block, int sector_num, int lev
 }
 
 // 在磁盘上申请一个inode
-static bool inode_alloc(struct inode_disk* node) {
-  int len = node->length;
+static bool inode_alloc(struct inode_disk* node, int len) {
   char* zeros = (char*) malloc(BLOCK_SECTOR_SIZE * sizeof(char)); 
   // 一级映射,直接申请对应块就可以
   int sector_num = DIV_ROUND_UP(len, BLOCK_SECTOR_SIZE);
@@ -190,6 +192,9 @@ static bool inode_alloc(struct inode_disk* node) {
   
   int i = 0;
   for (; i < l; ++i) {
+    if (node->direct_blocks[i]) {
+      continue;
+    }
     if (!free_map_allocate(1, &node->direct_blocks[i])) {
       return false;
     }
@@ -278,7 +283,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       disk_inode->is_dir = is_dir;
-      if (inode_alloc(disk_inode)) 
+      if (inode_alloc(disk_inode, length)) 
         {
           block_write (fs_device, sector, disk_inode);
           success = true; 
@@ -450,6 +455,13 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     return 0;
 
   // 写的位置超过文件末尾中间补0
+  if (offset > inode->data.length) {
+    if (!inode_alloc(&inode->data, offset + size)) {
+      return 0;
+    }
+    inode->data.length = offset + size;
+    cache_write(inode->sector, &inode->data);
+  }
 
   while (size > 0) 
     {
