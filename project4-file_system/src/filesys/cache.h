@@ -26,5 +26,8 @@ void cache_init();
 void cache_read(block_sector_t block, void* addr);
 void cache_write(block_sector_t block, const void* addr);
 void cache_destroy();
+static void insert_cache_entry(struct cache_entry* entry);
+static void cache_flush(struct cache_entry* entry);
+static void clock_eviction();
 
 #endif

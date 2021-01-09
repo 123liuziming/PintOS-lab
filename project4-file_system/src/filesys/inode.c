@@ -32,7 +32,7 @@ struct inode_disk
     block_sector_t doubly_indirect_blocks;
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    bool is_dir;
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -260,7 +260,7 @@ static bool inode_release(struct inode_disk* node) {
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -277,6 +277,7 @@ inode_create (block_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->is_dir = is_dir;
       if (inode_alloc(disk_inode)) 
         {
           block_write (fs_device, sector, disk_inode);
@@ -527,4 +528,18 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+/* Returns whether the file is directory or not. */
+bool
+inode_is_directory (const struct inode *inode)
+{
+  return inode->data.is_dir;
+}
+
+/* Returns whether the file is removed or not. */
+bool
+inode_is_removed (const struct inode *inode)
+{
+  return inode->removed;
 }

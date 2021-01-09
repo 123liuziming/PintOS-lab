@@ -1,0 +1,368 @@
+mkdir -p build/devices
+mkdir -p build/filesys
+mkdir -p build/lib
+mkdir -p build/lib/kernel
+mkdir -p build/lib/user
+mkdir -p build/tests/filesys/base
+mkdir -p build/tests/filesys/extended
+mkdir -p build/tests/userprog
+mkdir -p build/threads
+mkdir -p build/userprog
+cp ../Makefile.build build/Makefile
+cd build && make check
+make[1]: Entering directory `/home/loheagn/PintOS-lab/project4-file_system/src/filesys/build'
+gcc -m32 -E -nostdinc -I../.. -I../../lib -I../../lib/kernel -P ../../threads/kernel.lds.S > threads/kernel.lds.s
+gcc -m32 -c ../../threads/start.S -o threads/start.o -Wa,--gstabs -nostdinc -I../.. -I../../lib -I../../lib/kernel -DUSERPROG -DFILESYS -MMD -MF threads/start.d
+gcc -m32 -c ../../threads/init.c -o threads/init.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/init.d
+../../threads/init.c: In function ‘main’:
+../../threads/init.c:131:3: warning: implicit declaration of function ‘inode_open’ [-Wimplicit-function-declaration]
+   thread_current()->cwd = dir_open(inode_open(ROOT_DIR_SECTOR));
+   ^
+../../threads/init.c:131:3: warning: passing argument 1 of ‘dir_open’ makes pointer from integer without a cast [enabled by default]
+In file included from ../../threads/init.c:39:0:
+../../filesys/directory.h:18:13: note: expected ‘struct inode *’ but argument is of type ‘int’
+ struct dir *dir_open (struct inode *);
+             ^
+In file included from ../../threads/init.c:29:0:
+../../threads/init.c: At top level:
+../../userprog/syscall.h:7:13: warning: ‘syscall_halt’ declared ‘static’ but never defined [-Wunused-function]
+ static void syscall_halt(void);
+             ^
+gcc -m32 -c ../../threads/thread.c -o threads/thread.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/thread.d
+../../threads/thread.c: In function ‘thread_create’:
+../../threads/thread.c:216:30: warning: implicit declaration of function ‘malloc’ [-Wimplicit-function-declaration]
+     t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+                              ^
+../../threads/thread.c:216:42: warning: incompatible implicit declaration of built-in function ‘malloc’ [enabled by default]
+     t->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
+                                          ^
+gcc -m32 -c ../../threads/switch.S -o threads/switch.o -Wa,--gstabs -nostdinc -I../.. -I../../lib -I../../lib/kernel -DUSERPROG -DFILESYS -MMD -MF threads/switch.d
+gcc -m32 -c ../../threads/interrupt.c -o threads/interrupt.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/interrupt.d
+gcc -m32 -c ../../threads/intr-stubs.S -o threads/intr-stubs.o -Wa,--gstabs -nostdinc -I../.. -I../../lib -I../../lib/kernel -DUSERPROG -DFILESYS -MMD -MF threads/intr-stubs.d
+gcc -m32 -c ../../threads/synch.c -o threads/synch.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/synch.d
+gcc -m32 -c ../../threads/palloc.c -o threads/palloc.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/palloc.d
+gcc -m32 -c ../../threads/malloc.c -o threads/malloc.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF threads/malloc.d
+gcc -m32 -c ../../devices/pit.c -o devices/pit.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/pit.d
+gcc -m32 -c ../../devices/timer.c -o devices/timer.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/timer.d
+gcc -m32 -c ../../devices/kbd.c -o devices/kbd.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/kbd.d
+gcc -m32 -c ../../devices/vga.c -o devices/vga.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/vga.d
+gcc -m32 -c ../../devices/serial.c -o devices/serial.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/serial.d
+gcc -m32 -c ../../devices/block.c -o devices/block.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/block.d
+gcc -m32 -c ../../devices/partition.c -o devices/partition.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/partition.d
+gcc -m32 -c ../../devices/ide.c -o devices/ide.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/ide.d
+gcc -m32 -c ../../devices/input.c -o devices/input.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/input.d
+gcc -m32 -c ../../devices/intq.c -o devices/intq.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/intq.d
+gcc -m32 -c ../../devices/rtc.c -o devices/rtc.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/rtc.d
+gcc -m32 -c ../../devices/shutdown.c -o devices/shutdown.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/shutdown.d
+gcc -m32 -c ../../devices/speaker.c -o devices/speaker.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF devices/speaker.d
+gcc -m32 -c ../../lib/debug.c -o lib/debug.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/debug.d
+gcc -m32 -c ../../lib/random.c -o lib/random.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/random.d
+gcc -m32 -c ../../lib/stdio.c -o lib/stdio.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/stdio.d
+gcc -m32 -c ../../lib/stdlib.c -o lib/stdlib.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/stdlib.d
+gcc -m32 -c ../../lib/string.c -o lib/string.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/string.d
+gcc -m32 -c ../../lib/arithmetic.c -o lib/arithmetic.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/arithmetic.d
+gcc -m32 -c ../../lib/ustar.c -o lib/ustar.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/ustar.d
+gcc -m32 -c ../../lib/kernel/debug.c -o lib/kernel/debug.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/kernel/debug.d
+gcc -m32 -c ../../lib/kernel/list.c -o lib/kernel/list.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/kernel/list.d
+gcc -m32 -c ../../lib/kernel/bitmap.c -o lib/kernel/bitmap.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/kernel/bitmap.d
+gcc -m32 -c ../../lib/kernel/hash.c -o lib/kernel/hash.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/kernel/hash.d
+gcc -m32 -c ../../lib/kernel/console.c -o lib/kernel/console.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF lib/kernel/console.d
+gcc -m32 -c ../../userprog/process.c -o userprog/process.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/process.d
+../../userprog/process.c: In function ‘process_execute’:
+../../userprog/process.c:46:3: warning: implicit declaration of function ‘malloc’ [-Wimplicit-function-declaration]
+   char* file_name_cpy = malloc(strlen(file_name) + 1);
+   ^
+../../userprog/process.c:46:25: warning: incompatible implicit declaration of built-in function ‘malloc’ [enabled by default]
+   char* file_name_cpy = malloc(strlen(file_name) + 1);
+                         ^
+../../userprog/process.c:53:7: warning: unused variable ‘i’ [-Wunused-variable]
+   int i;
+       ^
+../../userprog/process.c: In function ‘start_process’:
+../../userprog/process.c:76:22: warning: incompatible implicit declaration of built-in function ‘malloc’ [enabled by default]
+   full_str = (char*) malloc(params_len + 1);
+                      ^
+../../userprog/process.c:125:24: warning: assignment makes integer from pointer without a cast [enabled by default]
+     *((int*)(if_.esp)) = stack_addr[argc - i - 1];
+                        ^
+../../userprog/process.c:128:22: warning: assignment makes integer from pointer without a cast [enabled by default]
+   *((int*)(if_.esp)) = if_.esp + 4;
+                      ^
+../../userprog/process.c:134:3: warning: implicit declaration of function ‘free’ [-Wimplicit-function-declaration]
+   free(full_str);
+   ^
+../../userprog/process.c:134:3: warning: incompatible implicit declaration of built-in function ‘free’ [enabled by default]
+../../userprog/process.c:102:15: warning: unused variable ‘BASE’ [-Wunused-variable]
+   const void* BASE = if_.esp;
+               ^
+../../userprog/process.c: In function ‘load’:
+../../userprog/process.c:314:23: warning: incompatible implicit declaration of built-in function ‘malloc’ [enabled by default]
+   t->exec_file_name = malloc(strlen(file_name) + 1);
+                       ^
+In file included from ../../userprog/process.c:22:0:
+../../userprog/process.c: At top level:
+../../userprog/syscall.h:7:13: warning: ‘syscall_halt’ declared ‘static’ but never defined [-Wunused-function]
+ static void syscall_halt(void);
+             ^
+gcc -m32 -c ../../userprog/pagedir.c -o userprog/pagedir.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/pagedir.d
+gcc -m32 -c ../../userprog/exception.c -o userprog/exception.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/exception.d
+gcc -m32 -c ../../userprog/syscall.c -o userprog/syscall.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/syscall.d
+../../userprog/syscall.c: In function ‘syscall_exit’:
+../../userprog/syscall.c:53:6: warning: unused variable ‘i’ [-Wunused-variable]
+  int i;
+      ^
+../../userprog/syscall.c: In function ‘read_from_user’:
+../../userprog/syscall.c:67:16: warning: comparison between signed and unsigned integer expressions [-Wsign-compare]
+  for (i = 0; i < size; ++i) {
+                ^
+../../userprog/syscall.c: In function ‘syscall_read’:
+../../userprog/syscall.c:117:17: warning: comparison between signed and unsigned integer expressions [-Wsign-compare]
+   for (i = 0; i < size; ++i) {
+                 ^
+../../userprog/syscall.c: In function ‘syscall_open’:
+../../userprog/syscall.c:136:2: warning: implicit declaration of function ‘strcmp’ [-Wimplicit-function-declaration]
+  if (strcmp(file, thread_current()->exec_file_name) == 0)
+  ^
+../../userprog/syscall.c: In function ‘syscall_handler’:
+../../userprog/syscall.c:222:3: warning: passing argument 1 of ‘check_memory’ from incompatible pointer type [enabled by default]
+   check_memory(p);
+   ^
+../../userprog/syscall.c:60:13: note: expected ‘const uint8_t *’ but argument is of type ‘int *’
+ static void check_memory(const uint8_t* addr) {
+             ^
+../../userprog/syscall.c:256:4: warning: pointer targets in passing argument 1 of ‘check_memory’ differ in signedness [-Wpointer-sign]
+    check_memory(file);
+    ^
+../../userprog/syscall.c:60:13: note: expected ‘const uint8_t *’ but argument is of type ‘char *’
+ static void check_memory(const uint8_t* addr) {
+             ^
+../../userprog/syscall.c:275:4: warning: pointer targets in passing argument 1 of ‘check_memory’ differ in signedness [-Wpointer-sign]
+    check_memory(file);
+    ^
+../../userprog/syscall.c:60:13: note: expected ‘const uint8_t *’ but argument is of type ‘char *’
+ static void check_memory(const uint8_t* addr) {
+             ^
+../../userprog/syscall.c:321:4: warning: pointer targets in passing argument 1 of ‘check_memory’ differ in signedness [-Wpointer-sign]
+    check_memory(file);
+    ^
+../../userprog/syscall.c:60:13: note: expected ‘const uint8_t *’ but argument is of type ‘char *’
+ static void check_memory(const uint8_t* addr) {
+             ^
+gcc -m32 -c ../../userprog/gdt.c -o userprog/gdt.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/gdt.d
+gcc -m32 -c ../../userprog/tss.c -o userprog/tss.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF userprog/tss.d
+gcc -m32 -c ../../filesys/filesys.c -o filesys/filesys.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/filesys.d
+../../filesys/filesys.c: In function ‘filesys_open’:
+../../filesys/filesys.c:71:3: warning: passing argument 1 of ‘get_dir_and_filename_by_path’ discards ‘const’ qualifier from pointer target type [enabled by default]
+   get_dir_and_filename_by_path(name, file_name, dir_name);
+   ^
+In file included from ../../filesys/filesys.c:8:0:
+../../filesys/directory.h:29:6: note: expected ‘char *’ but argument is of type ‘const char *’
+ void get_dir_and_filename_by_path(char* path, char* filename, char* directory);
+      ^
+../../filesys/filesys.c:71:3: warning: passing argument 2 of ‘get_dir_and_filename_by_path’ makes pointer from integer without a cast [enabled by default]
+   get_dir_and_filename_by_path(name, file_name, dir_name);
+   ^
+In file included from ../../filesys/filesys.c:8:0:
+../../filesys/directory.h:29:6: note: expected ‘char *’ but argument is of type ‘char’
+ void get_dir_and_filename_by_path(char* path, char* filename, char* directory);
+      ^
+../../filesys/filesys.c:77:3: warning: passing argument 1 of ‘strlen’ makes pointer from integer without a cast [enabled by default]
+   if (strlen(file_name)) {
+   ^
+In file included from ../../filesys/filesys.c:4:0:
+../../lib/string.h:20:8: note: expected ‘const char *’ but argument is of type ‘char’
+ size_t strlen (const char *);
+        ^
+../../filesys/filesys.c:71:31: warning: ‘file_name’ is used uninitialized in this function [-Wuninitialized]
+   get_dir_and_filename_by_path(name, file_name, dir_name);
+                               ^
+../../filesys/filesys.c:71:31: warning: ‘dir_name’ is used uninitialized in this function [-Wuninitialized]
+gcc -m32 -c ../../filesys/free-map.c -o filesys/free-map.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/free-map.d
+gcc -m32 -c ../../filesys/file.c -o filesys/file.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/file.d
+gcc -m32 -c ../../filesys/cache.c -o filesys/cache.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/cache.d
+In file included from ../../filesys/cache.c:1:0:
+../../filesys/cache.h:25:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_init();
+ ^
+../../filesys/cache.h:28:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_destroy();
+ ^
+../../filesys/cache.h:31:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ static void clock_eviction();
+ ^
+../../filesys/cache.c: In function ‘cache_hash_func’:
+../../filesys/cache.c:5:69: warning: unused parameter ‘aux’ [-Wunused-parameter]
+ static unsigned cache_hash_func(const struct hash_elem* elem, void* aux) {
+                                                                     ^
+../../filesys/cache.c: In function ‘cache_less_func’:
+../../filesys/cache.c:10:89: warning: unused parameter ‘aux’ [-Wunused-parameter]
+ static bool cache_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+                                                                                         ^
+../../filesys/cache.c: In function ‘cache_destroy_func’:
+../../filesys/cache.c:20:3: warning: implicit declaration of function ‘free’ [-Wimplicit-function-declaration]
+   free (entry);
+   ^
+../../filesys/cache.c:20:3: warning: incompatible implicit declaration of built-in function ‘free’ [enabled by default]
+../../filesys/cache.c:17:50: warning: unused parameter ‘aux’ [-Wunused-parameter]
+ cache_destroy_func(struct hash_elem *elem, void *aux)
+                                                  ^
+../../filesys/cache.c: At top level:
+../../filesys/cache.c:25:13: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ static void next_element() {
+             ^
+../../filesys/cache.c: In function ‘do_eviction’:
+../../filesys/cache.c:33:39: warning: implicit declaration of function ‘malloc’ [-Wimplicit-function-declaration]
+     struct cache_entry* tmp = (struct cache_entry*) malloc(sizeof(struct cache_entry));
+                                       ^
+../../filesys/cache.c:33:53: warning: incompatible implicit declaration of built-in function ‘malloc’ [enabled by default]
+     struct cache_entry* tmp = (struct cache_entry*) malloc(sizeof(struct cache_entry));
+                                                     ^
+../../filesys/cache.c: At top level:
+../../filesys/cache.c:44:13: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ static void clock_eviction() {
+             ^
+../../filesys/cache.c: In function ‘clock_eviction’:
+../../filesys/cache.c:55:13: warning: ‘return’ with a value, in function returning void [enabled by default]
+             return entry;
+             ^
+../../filesys/cache.c:58:5: warning: ‘return’ with a value, in function returning void [enabled by default]
+     return NULL;
+     ^
+../../filesys/cache.c: At top level:
+../../filesys/cache.c:87:6: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_init() {
+      ^
+../../filesys/cache.c:93:6: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_destroy() {
+      ^
+../../filesys/cache.c:25:13: warning: ‘next_element’ defined but not used [-Wunused-function]
+ static void next_element() {
+             ^
+gcc -m32 -c ../../filesys/directory.c -o filesys/directory.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/directory.d
+In file included from ../../filesys/directory.c:9:0:
+../../filesys/cache.h:25:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_init();
+ ^
+../../filesys/cache.h:28:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_destroy();
+ ^
+../../filesys/cache.h:31:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ static void clock_eviction();
+ ^
+../../filesys/directory.c: In function ‘get_dir_and_filename_by_path’:
+../../filesys/directory.c:30:3: warning: implicit declaration of function ‘dont_use_strncpy_use_strlcpy’ [-Wimplicit-function-declaration]
+   strncpy(path_cpy, path, path_len);
+   ^
+../../filesys/directory.c:37:3: warning: passing argument 3 of ‘strtok_r’ from incompatible pointer type [enabled by default]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+   ^
+In file included from ../../filesys/directory.c:3:0:
+../../lib/string.h:25:7: note: expected ‘char **’ but argument is of type ‘char *’
+ char *strtok_r (char *, const char *, char **);
+       ^
+../../filesys/directory.c:37:3: warning: passing argument 3 of ‘strtok_r’ from incompatible pointer type [enabled by default]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+   ^
+In file included from ../../filesys/directory.c:3:0:
+../../lib/string.h:25:7: note: expected ‘char **’ but argument is of type ‘char *’
+ char *strtok_r (char *, const char *, char **);
+       ^
+../../filesys/directory.c:45:10: warning: multi-character character constant [-Wmultichar]
+   *dir = '/0';
+          ^
+../../filesys/directory.c:45:3: warning: overflow in implicit constant conversion [-Woverflow]
+   *dir = '/0';
+   ^
+../../filesys/directory.c: In function ‘dir_open_path’:
+../../filesys/directory.c:61:3: warning: passing argument 3 of ‘strtok_r’ from incompatible pointer type [enabled by default]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+   ^
+In file included from ../../filesys/directory.c:3:0:
+../../lib/string.h:25:7: note: expected ‘char **’ but argument is of type ‘char *’
+ char *strtok_r (char *, const char *, char **);
+       ^
+../../filesys/directory.c:61:3: warning: passing argument 3 of ‘strtok_r’ from incompatible pointer type [enabled by default]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+   ^
+In file included from ../../filesys/directory.c:3:0:
+../../lib/string.h:25:7: note: expected ‘char **’ but argument is of type ‘char *’
+ char *strtok_r (char *, const char *, char **);
+       ^
+../../filesys/directory.c:64:10: warning: unused variable ‘flag’ [-Wunused-variable]
+     bool flag = dir_lookup(current_dir, token, &tmp);
+          ^
+In file included from ../../filesys/directory.c:9:0:
+../../filesys/directory.c: At top level:
+../../filesys/cache.h:29:13: warning: ‘insert_cache_entry’ declared ‘static’ but never defined [-Wunused-function]
+ static void insert_cache_entry(struct cache_entry* entry);
+             ^
+../../filesys/cache.h:30:13: warning: ‘cache_flush’ declared ‘static’ but never defined [-Wunused-function]
+ static void cache_flush(struct cache_entry* entry);
+             ^
+../../filesys/cache.h:31:13: warning: ‘clock_eviction’ declared ‘static’ but never defined [-Wunused-function]
+ static void clock_eviction();
+             ^
+../../filesys/directory.c: In function ‘get_dir_and_filename_by_path’:
+../../filesys/directory.c:37:14: warning: ‘token’ is used uninitialized in this function [-Wuninitialized]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+              ^
+../../filesys/directory.c: In function ‘dir_open_path’:
+../../filesys/directory.c:61:14: warning: ‘token’ is used uninitialized in this function [-Wuninitialized]
+   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
+              ^
+gcc -m32 -c ../../filesys/inode.c -o filesys/inode.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/inode.d
+In file included from ../../filesys/inode.c:9:0:
+../../filesys/cache.h:25:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_init();
+ ^
+../../filesys/cache.h:28:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ void cache_destroy();
+ ^
+../../filesys/cache.h:31:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+ static void clock_eviction();
+ ^
+../../filesys/inode.c: In function ‘indirect_inode_alloc’:
+../../filesys/inode.c:149:3: warning: passing argument 1 of ‘cache_write’ makes integer from pointer without a cast [enabled by default]
+   cache_write(block, sectors);
+   ^
+In file included from ../../filesys/inode.c:9:0:
+../../filesys/cache.h:27:6: note: expected ‘block_sector_t’ but argument is of type ‘block_sector_t *’
+ void cache_write(block_sector_t block, const void* addr);
+      ^
+../../filesys/inode.c: In function ‘inode_create’:
+../../filesys/inode.c:277:14: warning: unused variable ‘sectors’ [-Wunused-variable]
+       size_t sectors = bytes_to_sectors (length);
+              ^
+In file included from ../../filesys/inode.c:9:0:
+../../filesys/inode.c: At top level:
+../../filesys/cache.h:29:13: warning: ‘insert_cache_entry’ declared ‘static’ but never defined [-Wunused-function]
+ static void insert_cache_entry(struct cache_entry* entry);
+             ^
+../../filesys/cache.h:30:13: warning: ‘cache_flush’ declared ‘static’ but never defined [-Wunused-function]
+ static void cache_flush(struct cache_entry* entry);
+             ^
+../../filesys/cache.h:31:13: warning: ‘clock_eviction’ declared ‘static’ but never defined [-Wunused-function]
+ static void clock_eviction();
+             ^
+../../filesys/inode.c: In function ‘byte_to_sector’:
+../../filesys/inode.c:20:39: warning: ‘buffer’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+ #define block_read(a, b, c) cache_read(b, c)
+                                       ^
+../../filesys/inode.c:66:14: note: ‘buffer’ was declared here
+     uint8_t* buffer;
+              ^
+../../filesys/inode.c:20:39: warning: ‘buffer’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+ #define block_read(a, b, c) cache_read(b, c)
+                                       ^
+../../filesys/inode.c:73:14: note: ‘buffer’ was declared here
+     uint8_t* buffer;
+              ^
+gcc -m32 -c ../../filesys/fsutil.c -o filesys/fsutil.o -g -msoft-float -O -fno-stack-protector -nostdinc -I../.. -I../../lib -I../../lib/kernel -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers -DUSERPROG -DFILESYS -MMD -MF filesys/fsutil.d
+ld -melf_i386 -T threads/kernel.lds.s -o kernel.o threads/start.o threads/init.o threads/thread.o threads/switch.o threads/interrupt.o threads/intr-stubs.o threads/synch.o threads/palloc.o threads/malloc.o devices/pit.o devices/timer.o devices/kbd.o devices/vga.o devices/serial.o devices/block.o devices/partition.o devices/ide.o devices/input.o devices/intq.o devices/rtc.o devices/shutdown.o devices/speaker.o lib/debug.o lib/random.o lib/stdio.o lib/stdlib.o lib/string.o lib/arithmetic.o lib/ustar.o lib/kernel/debug.o lib/kernel/list.o lib/kernel/bitmap.o lib/kernel/hash.o lib/kernel/console.o userprog/process.o userprog/pagedir.o userprog/exception.o userprog/syscall.o userprog/gdt.o userprog/tss.o filesys/filesys.o filesys/free-map.o filesys/file.o filesys/cache.o filesys/directory.o filesys/inode.o filesys/fsutil.o
+filesys/directory.o: In function `get_dir_and_filename_by_path':
+/home/loheagn/PintOS-lab/project4-file_system/src/filesys/build/../../filesys/directory.c:30: undefined reference to `dont_use_strncpy_use_strlcpy'
+/home/loheagn/PintOS-lab/project4-file_system/src/filesys/build/../../filesys/directory.c:39: undefined reference to `dont_use_strncpy_use_strlcpy'
+/home/loheagn/PintOS-lab/project4-file_system/src/filesys/build/../../filesys/directory.c:46: undefined reference to `dont_use_strncpy_use_strlcpy'
+make[1]: *** [kernel.o] Error 1
+make[1]: Leaving directory `/home/loheagn/PintOS-lab/project4-file_system/src/filesys/build'
+make: *** [check] Error 2

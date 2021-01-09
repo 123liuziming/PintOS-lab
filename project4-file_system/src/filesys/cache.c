@@ -69,8 +69,7 @@ static void insert_cache_entry(struct cache_entry* entry) {
     int n = list_size(&cache_list);
     // 最多64个,如果多了要pick一个驱逐掉
     if (n == MAX_ENTRY_NUM) {
-        struct cache_entry* evicted = clock_eviction();
-        hash_delete(&cache_map, &evicted->hash_elem);
+        clock_eviction();
     }
     list_push_back(&cache_list, &entry->list_elem);
     hash_insert(&cache_map, &entry->hash_elem);

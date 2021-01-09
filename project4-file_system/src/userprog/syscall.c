@@ -104,7 +104,7 @@ static int syscall_write(int fd, const void* buffer, unsigned size) {
 
 static int syscall_create(const char* file, unsigned initial_size) {
 	lock_acquire(&filesys_lock);
-	int res = filesys_create(file, initial_size);
+	int res = filesys_create(file, initial_size, false);
 	lock_release(&filesys_lock);
 	return res;
 }

@@ -27,7 +27,7 @@ struct dir_entry
 void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   int path_len = strlen(path);
   char* path_cpy = (char*) malloc(path_len * sizeof(char));
-  strncpy(path_cpy, path, path_len);
+  strlcpy(path_cpy, path, path_len);
   char* dir = directory;
   if (path_len && path[0] == '/') {
     *(dir++) = '/';
@@ -36,14 +36,14 @@ void get_dir_and_filename_by_path(char* path, char* filename, char* directory) {
   char* prev_token = "";
   for (token = strtok_r(token, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr)) {
     if (strlen(prev_token)) {
-      strncpy(dir, prev_token, strlen(prev_token));
+      strlcpy(dir, prev_token, strlen(prev_token));
       dir += (strlen(token) + 1);
       *dir = '/';
     }
     prev_token = token;
   }
   *dir = '/0';
-  strncpy(filename, token, strlen(token));
+  strlcpy(filename, token, strlen(token));
   free(path_cpy);
 }
 
@@ -85,7 +85,7 @@ bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
   // TODO:创建目录时添加一项(父目录)
-  bool flag = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  bool flag = inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
   if (!flag) {
     return false;
   }
