@@ -323,10 +323,6 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
 
-  char directory[NAME_MAX + 1];
-  char file_name[NAME_MAX + 1];
-  get_dir_and_filename_by_path(name, file_name, directory);
-
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;

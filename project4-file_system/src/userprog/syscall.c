@@ -10,6 +10,8 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "threads/init.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -142,7 +144,11 @@ static int syscall_open(const char* file) {
 		lock_release(&filesys_lock);
 		return -1;
 	}
-	thread_current() -> files_map[fd_now++] = f;
+	thread_current() -> files_map[fd_now] = f;
+	if (inode_is_directory(f->inode)) {
+		thread_current()->dirs_map[fd_now] = dir_open(f->inode);
+	}
+	++fd_now;
 	//printf("%x %x\n", f, thread_current() -> files_map[fd_now - 1]);
 	lock_release(&filesys_lock);
 	return fd_now - 1;
@@ -167,6 +173,7 @@ static void syscall_close(int fd) {
 		if (f && fd != 127) {
 			file_close(f);
 			thread_current()->files_map[fd] = NULL;
+			thread_current()->dirs_map[fd] = NULL;
 		}
 	}
 	lock_release(&filesys_lock);
@@ -212,6 +219,58 @@ static bool syscall_remove(const char *file) {
   	res = filesys_remove(file);
   	lock_release (&filesys_lock);
   	return res;
+}
+
+static bool syscall_chdir(const char* dir) {
+	bool res;
+	lock_acquire(&filesys_lock);
+	res = dir_chdir(dir);
+	lock_release(&filesys_lock);
+	return res;
+}
+
+static bool syscall_mkdir(const char dir) {
+	bool res;
+	lock_acquire(&filesys_lock);
+	res = filesys_create(dir, 0, true);
+	lock_release(&filesys_lock);
+	return res;
+}
+
+static bool syscall_readdir(int fd, char* name) {
+	bool res = false;;
+	lock_acquire(&filesys_lock);
+	struct thread* t = thread_current();
+	if (check_fd(fd)) {
+		struct file* f = t->files_map[fd];
+		if (!f) {
+			goto done;
+		}
+		if (!inode_is_directory(f->inode)) {
+			goto done;
+		}
+		res = dir_readdir(t->dirs_map[fd], name);
+	}
+done:
+	lock_release(&filesys_lock);
+	return res;
+}
+
+static bool syscall_isdir(int fd) {
+	bool res = false;;
+	lock_acquire(&filesys_lock);
+	res = dir_isdir(fd);
+	lock_release(&filesys_lock);
+	return res;
+}
+
+static int syscall_inumber(int fd) {
+	int res = -1;;
+	lock_acquire(&filesys_lock);
+	struct thread* t = thread_current();
+	res = inode_get_inumber(t->files_map[fd]->inode);
+	lock_release(&filesys_lock);
+	return res;
 }
 
 static void
@@ -320,6 +379,46 @@ syscall_handler (struct intr_frame *f UNUSED)
 			read_from_user(p + 1, &file, sizeof(file));
 			check_memory(file);
 			f->eax = syscall_remove(file);
+			break;
+		}
+
+		case SYS_CHDIR: {
+			char* file;
+			read_from_user(p + 1, &file, sizeof(file));
+			check_memory(file);
+			f->eax = syscall_chdir(file);
+			break;
+		}
+
+		case SYS_MKDIR: {
+			char* file;
+			read_from_user(p + 1, &file, sizeof(file));
+			check_memory(file);
+			f->eax = syscall_mkdir(file);
+			break;
+		}
+
+		case SYS_READDIR: {
+			int fd;
+			char* file;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			read_from_user(p + 2, &file, sizeof(file));
+			check_memory(file);
+			f->eax = syscall_readdir(fd, file);
+			break;
+		}
+
+		case SYS_ISDIR: {
+			int fd;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			f->eax = syscall_isdir(fd);
+			break;
+		}
+
+		case SYS_INUMBER: {
+			int fd;
+			read_from_user(p + 1, &fd, sizeof(fd));
+			f->eax = syscall_inumber(fd);
 			break;
 		}
 

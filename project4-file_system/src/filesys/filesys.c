@@ -99,10 +99,12 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  char directory[strlen(name)];
+  char file_name[strlen(name)];
+  get_dir_and_filename_by_path(name, file_name, directory);
+  struct dir *dir = dir_open_path(directory);
+  bool success = dir != NULL && dir_remove (dir, file_name);
   dir_close (dir); 
-
   return success;
 }
 
