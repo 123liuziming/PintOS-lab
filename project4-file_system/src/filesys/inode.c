@@ -7,6 +7,7 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 #include "filesys/cache.h"
+#include <stdio.h>
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -189,9 +190,10 @@ static bool inode_alloc(struct inode_disk* node, int len) {
   // 一级映射,直接申请对应块就可以
   int sector_num = DIV_ROUND_UP(len, BLOCK_SECTOR_SIZE);
   int l = MIN(sector_num, DIRECT_BLOCK_COUNT);
-  
+  printf("%d %d %d\n", len, l, sector_num);
   int i = 0;
   for (; i < l; ++i) {
+    printf("i %d\n", i);
     if (node->direct_blocks[i]) {
       continue;
     }
@@ -199,9 +201,13 @@ static bool inode_alloc(struct inode_disk* node, int len) {
       return false;
     }
     // 申请到了inode
+    printf("cache write begin\n");
     cache_write(node->direct_blocks[i], zeros);
+    printf("write back\n");
   }
+  printf("sector num %d\n", sector_num);
   sector_num -= l;
+  printf("sector num %d\n", sector_num);
   if (sector_num == 0) {
     return true;
   }
@@ -267,6 +273,7 @@ static bool inode_release(struct inode_disk* node) {
 bool
 inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
+  printf("creating inode\n");
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
@@ -284,6 +291,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
       disk_inode->is_dir = is_dir;
       if (inode_alloc(disk_inode, length)) 
         {
+          printf("alloc finish\n");
           block_write (fs_device, sector, disk_inode);
           success = true; 
         } 

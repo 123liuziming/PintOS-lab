@@ -1,6 +1,7 @@
 #include "filesys/cache.h"
 #include "filesys/filesys.h"
 #include <string.h>
+#include <stdio.h>
 
 static unsigned cache_hash_func(const struct hash_elem* elem, void* aux) {
   struct cache_entry* entry = hash_entry(elem, struct cache_entry, hash_elem);
@@ -23,10 +24,12 @@ cache_destroy_func(struct hash_elem *elem, void *aux)
 struct list_elem* now = NULL;
 
 static void next_element() {
-    if (now == NULL || now == list_end(&cache_list))
+    if (now == NULL || now == list_end(&cache_list)) {
         now = list_begin(&cache_list);
-    else
+    }
+    else {
         now = list_next(now);
+    }
 }
 
 static struct cache_entry* do_eviction(block_sector_t block) {
@@ -35,7 +38,7 @@ static struct cache_entry* do_eviction(block_sector_t block) {
     tmp->is_dirty = false;
     tmp->is_accessed = false;
     block_read(fs_device, block, tmp->buffer);
-    clock_eviction();
+    printf("block read finish\n");
     insert_cache_entry(tmp);
     return tmp;
 }
@@ -44,10 +47,13 @@ static struct cache_entry* do_eviction(block_sector_t block) {
 static void clock_eviction() {
     int n = list_size(&cache_list);
     int i = 0;
-    for (; i <= n; ++i) {
+    printf("clock eviction\n");
+    for (; i <= (n << 1); ++i) {
+        next_element();
         struct cache_entry* entry = list_entry(now, struct cache_entry, list_elem);
-        if (entry->is_accessed)
+        if (entry->is_accessed) {
             entry->is_accessed = false;
+        }
         else {
             cache_flush(entry);
             hash_delete(&cache_map, &entry->hash_elem);
@@ -60,6 +66,7 @@ static void clock_eviction() {
 
 static void cache_flush(struct cache_entry* entry) {
     if (entry->is_dirty) {
+        printf("dirty!\n");
         block_write(fs_device, entry->block_num, entry->buffer);
         entry->is_dirty = false;
     }
@@ -73,6 +80,7 @@ static void insert_cache_entry(struct cache_entry* entry) {
     }
     list_push_back(&cache_list, &entry->list_elem);
     hash_insert(&cache_map, &entry->hash_elem);
+    printf("insert cache entry\n");
 }
 
 static struct cache_entry* cache_lookup(block_sector_t block) {
@@ -102,7 +110,8 @@ void cache_destroy() {
     lock_acquire(&cache_lock);
 }
 
-void cache_read(block_sector_t block, void* addr) {    
+void cache_read(block_sector_t block, void* addr) {   
+    printf("reading\n"); 
     lock_acquire(&cache_lock);
     struct cache_entry *entry = cache_lookup(block);
     // 页不存在,则从磁盘里读,读完创建缓存条目
@@ -123,6 +132,9 @@ void cache_write(block_sector_t block, const void* addr) {
     // 把新数据写到缓冲区,然后把缓冲区设置为dirty,等到驱逐的时候自然就写回到磁盘了
     entry->is_accessed = true;
     entry->is_dirty = true;
+    printf("cache writing\n");
     memcpy(entry->buffer, addr, BLOCK_SECTOR_SIZE);
+    printf("cache writing\n");
     lock_release(&cache_lock);
+    printf("cache write finish\n");
 }
