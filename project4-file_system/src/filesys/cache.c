@@ -1,6 +1,7 @@
 #include "filesys/cache.h"
 #include "filesys/filesys.h"
 #include <string.h>
+#include <stdio.h>
 
 static unsigned cache_hash_func(const struct hash_elem* elem, void* aux) {
   struct cache_entry* entry = hash_entry(elem, struct cache_entry, hash_elem);
@@ -35,7 +36,6 @@ static struct cache_entry* do_eviction(block_sector_t block) {
     tmp->is_dirty = false;
     tmp->is_accessed = false;
     block_read(fs_device, block, tmp->buffer);
-    clock_eviction();
     insert_cache_entry(tmp);
     return tmp;
 }
@@ -124,5 +124,6 @@ void cache_write(block_sector_t block, const void* addr) {
     entry->is_accessed = true;
     entry->is_dirty = true;
     memcpy(entry->buffer, addr, BLOCK_SECTOR_SIZE);
+    printf("cache_write\n");
     lock_release(&cache_lock);
 }

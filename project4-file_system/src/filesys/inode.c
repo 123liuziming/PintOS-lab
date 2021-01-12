@@ -7,6 +7,7 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 #include "filesys/cache.h"
+#include <stdio.h>
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -189,6 +190,7 @@ static bool inode_alloc(struct inode_disk* node, int len) {
   // 一级映射,直接申请对应块就可以
   int sector_num = DIV_ROUND_UP(len, BLOCK_SECTOR_SIZE);
   int l = MIN(sector_num, DIRECT_BLOCK_COUNT);
+  printf("len l sector_number: %d %d\n", len, l, sector_num);
   
   int i = 0;
   for (; i < l; ++i) {
@@ -203,6 +205,7 @@ static bool inode_alloc(struct inode_disk* node, int len) {
   }
   sector_num -= l;
   if (sector_num == 0) {
+    printf("finish\n");
     return true;
   }
 
