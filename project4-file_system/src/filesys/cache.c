@@ -1,140 +1,179 @@
+#include <debug.h>
+#include <string.h>
 #include "filesys/cache.h"
 #include "filesys/filesys.h"
-#include <string.h>
-#include <stdio.h>
+#include "threads/synch.h"
 
-static unsigned cache_hash_func(const struct hash_elem* elem, void* aux) {
-  struct cache_entry* entry = hash_entry(elem, struct cache_entry, hash_elem);
-  return hash_int((int)entry->block_num);
-}
+#define BUFFER_CACHE_SIZE 64
 
-static bool cache_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
-  struct cache_entry *a_entry = hash_entry(a, struct cache_entry, hash_elem);
-  struct cache_entry *b_entry = hash_entry(b, struct cache_entry, hash_elem);
-  return a_entry->block_num < b_entry->block_num;
-}
+struct buffer_cache_entry_t {
+  bool occupied;  // true only if this entry is valid cache entry
 
-static void
-cache_destroy_func(struct hash_elem *elem, void *aux)
+  block_sector_t disk_sector;
+  uint8_t buffer[BLOCK_SECTOR_SIZE];
+
+  bool dirty;     // dirty bit
+  bool access;    // reference bit, for clock algorithm
+};
+
+/* Buffer cache entries. */
+static struct buffer_cache_entry_t cache[BUFFER_CACHE_SIZE];
+
+/* A global lock for synchronizing buffer cache operations. */
+static struct lock buffer_cache_lock;
+
+void
+cache_init (void)
 {
-  struct cache_entry *entry = hash_entry(elem, struct cache_entry, hash_elem);
-  free (entry);
+  lock_init (&buffer_cache_lock);
+
+  // initialize entries
+  size_t i;
+  for (i = 0; i < BUFFER_CACHE_SIZE; ++ i)
+  {
+    cache[i].occupied = false;
+  }
 }
 
-struct list_elem* now = NULL;
+/**
+ * An internal method for flushing back the cache entry into disk.
+ * Must be called with the lock held.
+ */
+static void
+buffer_cache_flush (struct buffer_cache_entry_t *entry)
+{
+  ASSERT (lock_held_by_current_thread(&buffer_cache_lock));
+  ASSERT (entry != NULL && entry->occupied == true);
 
-static void next_element() {
-    if (now == NULL || now == list_end(&cache_list)) {
-        now = list_begin(&cache_list);
+  if (entry->dirty) {
+    block_write (fs_device, entry->disk_sector, entry->buffer);
+    entry->dirty = false;
+  }
+}
+
+void
+buffer_cache_close (void)
+{
+  // flush buffer cache entries
+  lock_acquire (&buffer_cache_lock);
+
+  size_t i;
+  for (i = 0; i < BUFFER_CACHE_SIZE; ++ i)
+  {
+    if (cache[i].occupied == false) continue;
+    buffer_cache_flush( &(cache[i]) );
+  }
+
+  lock_release (&buffer_cache_lock);
+}
+
+
+/**
+ * Lookup the cache entry, and returns the pointer of buffer_cache_entry_t,
+ * or NULL in case of cache miss. (simply traverse the cache entries)
+ */
+static struct buffer_cache_entry_t*
+buffer_cache_lookup (block_sector_t sector)
+{
+  size_t i;
+  for (i = 0; i < BUFFER_CACHE_SIZE; ++ i)
+  {
+    if (cache[i].occupied == false) continue;
+    if (cache[i].disk_sector == sector) {
+      // cache hit.
+      return &(cache[i]);
     }
-    else {
-        now = list_next(now);
+  }
+  return NULL; // cache miss
+}
+
+/**
+ * Obtain a free cache entry slot.
+ * If there is an unoccupied slot already, return it.
+ * Otherwise, some entry should be evicted by the clock algorithm.
+ */
+static struct buffer_cache_entry_t*
+buffer_cache_evict (void)
+{
+  ASSERT (lock_held_by_current_thread(&buffer_cache_lock));
+
+  // clock algorithm
+  static size_t clock = 0;
+  while (true) {
+    if (cache[clock].occupied == false) {
+      // found an empty slot -- use it
+      return &(cache[clock]);
     }
-}
 
-static struct cache_entry* do_eviction(block_sector_t block) {
-    struct cache_entry* tmp = (struct cache_entry*) malloc(sizeof(struct cache_entry));
-    tmp->block_num = block;
-    tmp->is_dirty = false;
-    tmp->is_accessed = false;
-    block_read(fs_device, block, tmp->buffer);
-    printf("block read finish\n");
-    insert_cache_entry(tmp);
-    return tmp;
-}
-
-// 时钟算法
-static void clock_eviction() {
-    int n = list_size(&cache_list);
-    int i = 0;
-    printf("clock eviction\n");
-    for (; i <= (n << 1); ++i) {
-        next_element();
-        struct cache_entry* entry = list_entry(now, struct cache_entry, list_elem);
-        if (entry->is_accessed) {
-            entry->is_accessed = false;
-        }
-        else {
-            cache_flush(entry);
-            hash_delete(&cache_map, &entry->hash_elem);
-            list_remove(&entry->list_elem);
-            return entry;
-        }
+    if (cache[clock].access) {
+      // give a second chance
+      cache[clock].access = false;
     }
-    return NULL;
+    else break;
+
+    clock ++;
+    clock %= BUFFER_CACHE_SIZE;
+  }
+
+  // evict cache[clock]
+  struct buffer_cache_entry_t *slot = &cache[clock];
+  if (slot->dirty) {
+    // write back into disk
+    buffer_cache_flush (slot);
+  }
+
+  slot->occupied = false;
+  return slot;
 }
 
-static void cache_flush(struct cache_entry* entry) {
-    if (entry->is_dirty) {
-        printf("dirty!\n");
-        block_write(fs_device, entry->block_num, entry->buffer);
-        entry->is_dirty = false;
-    }
+
+void
+cache_read (block_sector_t sector, void *target)
+{
+  lock_acquire (&buffer_cache_lock);
+
+  struct buffer_cache_entry_t *slot = buffer_cache_lookup (sector);
+  if (slot == NULL) {
+    // cache miss: need eviction.
+    slot = buffer_cache_evict ();
+    ASSERT (slot != NULL && slot->occupied == false);
+
+    // fill in the cache entry.
+    slot->occupied = true;
+    slot->disk_sector = sector;
+    slot->dirty = false;
+    block_read (fs_device, sector, slot->buffer);
+  }
+
+  // copy the buffer data into memory.
+  slot->access = true;
+  memcpy (target, slot->buffer, BLOCK_SECTOR_SIZE);
+
+  lock_release (&buffer_cache_lock);
 }
 
-static void insert_cache_entry(struct cache_entry* entry) {
-    int n = list_size(&cache_list);
-    // 最多64个,如果多了要pick一个驱逐掉
-    if (n == MAX_ENTRY_NUM) {
-        clock_eviction();
-    }
-    list_push_back(&cache_list, &entry->list_elem);
-    hash_insert(&cache_map, &entry->hash_elem);
-    printf("insert cache entry\n");
-}
+void
+cache_write (block_sector_t sector, const void *source)
+{
+  lock_acquire (&buffer_cache_lock);
 
-static struct cache_entry* cache_lookup(block_sector_t block) {
-    struct cache_entry tmp;
-    tmp.block_num = block;
-    struct hash_elem* elem = hash_find(&cache_map, &tmp.hash_elem);
-    if (elem == NULL)
-        return NULL;
-    return hash_entry(elem, struct cache_entry, hash_elem);
-}
+  struct buffer_cache_entry_t *slot = buffer_cache_lookup (sector);
+  if (slot == NULL) {
+    // cache miss: need eviction.
+    slot = buffer_cache_evict ();
+    ASSERT (slot != NULL && slot->occupied == false);
 
-void cache_init() {
-    hash_init(&cache_map, cache_hash_func, cache_less_func, NULL);
-    list_init(&cache_list);
-    lock_init(&cache_lock);
-}
+    // fill in the cache entry.
+    slot->occupied = true;
+    slot->disk_sector = sector;
+    slot->dirty = false;
+    block_read (fs_device, sector, slot->buffer);
+  }
 
-void cache_destroy() {
-    lock_acquire(&cache_lock);
-    struct list_elem* begin;
-    for (begin = list_begin(&cache_list); begin != list_end(&cache_list); begin = list_next(begin)) {
-        struct cache_entry* entry = list_entry(begin, struct cache_entry, list_elem);
-        cache_flush(entry);
-        list_remove(begin);
-    }
-    hash_destroy(&cache_map, cache_destroy_func);
-    lock_acquire(&cache_lock);
-}
+  // copy the data form memory into the buffer cache.
+  slot->access = true;
+  slot->dirty = true;
+  memcpy (slot->buffer, source, BLOCK_SECTOR_SIZE);
 
-void cache_read(block_sector_t block, void* addr) {   
-    printf("reading\n"); 
-    lock_acquire(&cache_lock);
-    struct cache_entry *entry = cache_lookup(block);
-    // 页不存在,则从磁盘里读,读完创建缓存条目
-    if (!entry) {
-        entry = do_eviction(block);
-    }
-    entry->is_accessed = true;
-    memcpy(addr, entry->buffer, BLOCK_SECTOR_SIZE);
-    lock_release(&cache_lock);
-}
-
-void cache_write(block_sector_t block, const void* addr) {
-    lock_acquire(&cache_lock);
-    struct cache_entry* entry = cache_lookup(block);
-    if (!entry) {
-        entry = do_eviction(block);
-    }
-    // 把新数据写到缓冲区,然后把缓冲区设置为dirty,等到驱逐的时候自然就写回到磁盘了
-    entry->is_accessed = true;
-    entry->is_dirty = true;
-    printf("cache writing\n");
-    memcpy(entry->buffer, addr, BLOCK_SECTOR_SIZE);
-    printf("cache writing\n");
-    lock_release(&cache_lock);
-    printf("cache write finish\n");
+  lock_release (&buffer_cache_lock);
 }

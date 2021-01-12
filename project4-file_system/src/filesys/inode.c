@@ -190,12 +190,8 @@ static bool inode_alloc(struct inode_disk* node, int len) {
   // 一级映射,直接申请对应块就可以
   int sector_num = DIV_ROUND_UP(len, BLOCK_SECTOR_SIZE);
   int l = MIN(sector_num, DIRECT_BLOCK_COUNT);
-<<<<<<< HEAD
-  printf("%d %d %d\n", len, l, sector_num);
-=======
   printf("len l sector_number: %d %d\n", len, l, sector_num);
   
->>>>>>> b12ff1f36cdc4f611d0d7b7db1c8d2a936c1e7b5
   int i = 0;
   for (; i < l; ++i) {
     printf("i %d\n", i);

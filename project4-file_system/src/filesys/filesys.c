@@ -46,13 +46,15 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, bool is_dir) 
 {
-  printf("filesys creating\n");
+  char directory[strlen(name)];
+  char file_name[strlen(name)];
+  get_dir_and_filename_by_path(name, file_name, directory);
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = dir_open_path(directory);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, is_dir)
-                  && dir_add (dir, name, inode_sector, is_dir));
+                  && dir_add (dir, file_name, inode_sector, is_dir));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
