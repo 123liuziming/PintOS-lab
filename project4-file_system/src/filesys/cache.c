@@ -23,7 +23,7 @@ static struct buffer_cache_entry_t cache[BUFFER_CACHE_SIZE];
 static struct lock buffer_cache_lock;
 
 void
-cache_init (void)
+buffer_cache_init (void)
 {
   lock_init (&buffer_cache_lock);
 
@@ -128,7 +128,7 @@ buffer_cache_evict (void)
 
 
 void
-cache_read (block_sector_t sector, void *target)
+buffer_cache_read (block_sector_t sector, void *target)
 {
   lock_acquire (&buffer_cache_lock);
 
@@ -153,7 +153,7 @@ cache_read (block_sector_t sector, void *target)
 }
 
 void
-cache_write (block_sector_t sector, const void *source)
+buffer_cache_write (block_sector_t sector, const void *source)
 {
   lock_acquire (&buffer_cache_lock);
 

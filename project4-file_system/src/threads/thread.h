@@ -4,8 +4,10 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h"
-#include "lib/kernel/hash.h"
+
+#ifdef VM
+#include "vm/page.h"
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -20,17 +22,11 @@ enum thread_status
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
-#define EXIT_CODE_ERROR ((int8_t) -1)
-#define EXIT_CODE_OK ((int8_t) 0)
-
-#define pid_t int
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define OPEN_MAX 128
-#define PID_MAX 128
 
 /* A kernel thread or user process.
 
@@ -96,29 +92,52 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int original_priority;              /* Priority, before donation */
     struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem waitelem;          /* List element, stored in the wait_list queue */
+    int64_t sleep_endtick;              /* The tick after which the thread should awake (if the thread is in sleep) */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+    struct list_elem elem;              /* List element, stored in the ready_list queue */
+
+    // needed for priority donations
+    struct lock *waiting_lock;          /* The lock object on which this thread is waiting (or NULL if not locked) */
+    struct list locks;                  /* List of locks the thread holds (for multiple donations) */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    int8_t exit_code;
-    struct semaphore* parent_sema;
-    struct thread* parent_process;
-    struct list child_processes;
-    struct file* files_map[OPEN_MAX];
-    struct dir* dirs_map[OPEN_MAX];
-    int exec_file_fd;
-    char* exec_file_name;
+
+    // Project 2: file descriptors and process table
+    /* Owned by userprog/process.c and userprog/syscall.c */
+
+    struct process_control_block *pcb;  /* Process Control Block */
+    struct list child_list;             /* List of children processes of this thread,
+                                          each elem is defined by pcb#elem */
+
+    struct list file_descriptors;       /* List of file_descriptors the thread contains */
+
+    struct file *executing_file;        /* The executable file of associated process. */
+
+    uint8_t *current_esp;               /* The current value of the user program’s stack pointer.
+                                           A page fault might occur in the kernel, so we might
+                                           need to store esp on transition to kernel mode. (4.3.3) */
 #endif
-    struct dir* cwd;
+
+#ifdef VM
+    // Project 3: Supplemental page table.
+    struct supplemental_page_table *supt;   /* Supplemental Page Table. */
+
+    // Project 3: Memory Mapped Files.
+    struct list mmap_list;              /* List of struct mmap_desc. */
+#endif
+
+    // Project 4: CWD.
+    struct dir *cwd;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
-struct thread* get_process_by_id(tid_t id);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -128,7 +147,7 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-void thread_tick (void);
+void thread_tick (int64_t tick);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
@@ -136,6 +155,8 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
+
+void thread_sleep_until (int64_t wake_tick);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -150,6 +171,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_priority_donate(struct thread *, int priority);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

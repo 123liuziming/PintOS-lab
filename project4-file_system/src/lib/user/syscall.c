@@ -23,7 +23,7 @@
             ("pushl %[arg0]; pushl %[number]; int $0x30; addl $8, %%esp" \
                : "=a" (retval)                                           \
                : [number] "i" (NUMBER),                                  \
-                 [arg0] "r" (ARG0)                                       \
+                 [arg0] "g" (ARG0)                                       \
                : "memory");                                              \
           retval;                                                        \
         })

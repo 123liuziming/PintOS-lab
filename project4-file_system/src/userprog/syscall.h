@@ -1,9 +1,15 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
-struct lock filesys_lock;
+#include "userprog/process.h"
+
 void syscall_init (void);
 
-static void syscall_halt(void);
+void sys_exit (int);
+
+#ifdef VM
+// expose munmap() so that it can be call in sys_exit();
+bool sys_munmap (mmapid_t);
+#endif
 
 #endif /* userprog/syscall.h */

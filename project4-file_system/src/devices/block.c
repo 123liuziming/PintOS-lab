@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "devices/ide.h"
 #include "threads/malloc.h"
-#include <stdio.h>
 
 /* A block device. */
 struct block
@@ -134,7 +133,6 @@ block_read (struct block *block, block_sector_t sector, void *buffer)
 void
 block_write (struct block *block, block_sector_t sector, const void *buffer)
 {
-  printf("block_write\n");
   check_sector (block, sector);
   ASSERT (block->type != BLOCK_FOREIGN);
   block->ops->write (block->aux, sector, buffer);

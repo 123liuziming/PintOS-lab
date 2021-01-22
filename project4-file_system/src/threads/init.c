@@ -31,13 +31,15 @@
 #else
 #include "tests/threads/tests.h"
 #endif
+#ifdef VM
+#include "vm/frame.h"
+#include "vm/swap.h"
+#endif
 #ifdef FILESYS
 #include "devices/block.h"
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
-#include "filesys/directory.h"
-#include "filesys/filesys.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -79,16 +81,18 @@ int
 main (void)
 {
   char **argv;
-  /* Clear BSS. */  
+
+  /* Clear BSS. */
   bss_init ();
 
   /* Break command line into arguments and parse options. */
   argv = read_command_line ();
   argv = parse_options (argv);
+
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
-  console_init ();  
+  console_init ();
 
   /* Greet user. */
   printf ("Pintos booting with %'"PRIu32" kB RAM...\n",
@@ -98,11 +102,18 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
+
+#ifdef VM
+  /* Initialize Virtual memory system. (Project 3) */
+  vm_frame_init();
+#endif
+
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
 #endif
+
   /* Initialize interrupt handlers. */
   intr_init ();
   timer_init ();
@@ -112,12 +123,7 @@ main (void)
   exception_init ();
   syscall_init ();
 #endif
-  fd_now = 3;
-  pid_hash_map_lock = (struct lock*) malloc(sizeof(struct lock));
-  lock_init(pid_hash_map_lock);
-  pid_hash_map[1] = thread_current();
-  thread_current()->parent_sema = (struct semaphore*) malloc(sizeof(struct semaphore));
-  sema_init(thread_current()->parent_sema, 0);
+
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
@@ -125,16 +131,19 @@ main (void)
 
 #ifdef FILESYS
   /* Initialize file system. */
-  cache_init();
   ide_init ();
   locate_block_devices ();
   filesys_init (format_filesys);
-  thread_current()->cwd = dir_open(inode_open(ROOT_DIR_SECTOR));
+#endif
+#ifdef VM
+  vm_swap_init ();
 #endif
 
   printf ("Boot complete.\n");
+
   /* Run actions specified on kernel command line. */
   run_actions (argv);
+
   /* Finish up. */
   shutdown ();
   thread_exit ();
@@ -147,7 +156,7 @@ main (void)
    The start and end of the BSS segment is recorded by the
    linker as _start_bss and _end_bss.  See kernel.lds. */
 static void
-bss_init (void) 
+bss_init (void)
 {
   extern char _start_bss, _end_bss;
   memset (&_start_bss, 0, &_end_bss - &_start_bss);
@@ -194,7 +203,7 @@ paging_init (void)
 /* Breaks the kernel command line into words and returns them as
    an argv-like array. */
 static char **
-read_command_line (void) 
+read_command_line (void)
 {
   static char *argv[LOADER_ARGS_LEN / 2 + 1];
   char *p, *end;
@@ -204,7 +213,7 @@ read_command_line (void)
   argc = *(uint32_t *) ptov (LOADER_ARG_CNT);
   p = ptov (LOADER_ARGS);
   end = p + LOADER_ARGS_LEN;
-  for (i = 0; i < argc; i++) 
+  for (i = 0; i < argc; i++)
     {
       if (p >= end)
         PANIC ("command line arguments overflow");
@@ -229,14 +238,14 @@ read_command_line (void)
 /* Parses options in ARGV[]
    and returns the first non-option argument. */
 static char **
-parse_options (char **argv) 
+parse_options (char **argv)
 {
   for (; *argv != NULL && **argv == '-'; argv++)
     {
       char *save_ptr;
       char *name = strtok_r (*argv, "=", &save_ptr);
       char *value = strtok_r (NULL, "", &save_ptr);
-      
+
       if (!strcmp (name, "-h"))
         usage ();
       else if (!strcmp (name, "-q"))
@@ -276,7 +285,7 @@ parse_options (char **argv)
      for reproducibility.  To fix this, give the "-r" option to
      the pintos script to request real-time execution. */
   random_init (rtc_get_time ());
-  
+
   return argv;
 }
 
@@ -285,16 +294,10 @@ static void
 run_task (char **argv)
 {
   const char *task = argv[1];
-  
+
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
-  // 我的pintos不支持-v选项,一旦有此选项会崩溃,无法运行multi-oom用例
-  if (strcmp(task, "multi-oom") == 0) 
-    printf("(multi-oom) begin\n(multi-oom) success. program forked 10 times.\n(multi-oom) end\n");
-  else {
-    int pid = process_execute (task);
-    process_wait (pid);    
-  }
+  process_wait (process_execute (task));
 #else
   run_test (task);
 #endif
@@ -304,10 +307,10 @@ run_task (char **argv)
 /* Executes all of the actions specified in ARGV[]
    up to the null pointer sentinel. */
 static void
-run_actions (char **argv) 
+run_actions (char **argv)
 {
   /* An action. */
-  struct action 
+  struct action
     {
       char *name;                       /* Action name. */
       int argc;                         /* # of args, including action name. */
@@ -315,7 +318,7 @@ run_actions (char **argv)
     };
 
   /* Table of supported actions. */
-  static const struct action actions[] = 
+  static const struct action actions[] =
     {
       {"run", 2, run_task},
 #ifdef FILESYS
@@ -349,7 +352,7 @@ run_actions (char **argv)
       a->function (argv);
       argv += a->argc;
     }
-  
+
 }
 
 /* Prints a kernel command line help message and powers off the
